@@ -4,6 +4,30 @@
 
 TODO :D
 
+## Skriptit
+
+### Parse Joukahainen
+
+Hakee Joukahaisen sääntötiedostosta suunnilleen sopivat sanat. 
+
+Argumentit: 
+1. sanapituus 
+2. output-fileen nimi
+
+Esim. 
+`python parse_joukahainen.py 5 wordlists/joukahainen_5.txt`
+
+### Find solutions
+
+Hakee ratkaisut annetun sanaston pohjalta.
+
+Argumentit:
+1. käytettävä sanasto
+2. ratkaisutiedosto
+
+Esim. 
+`python find_solutions.py wordlists/joukahainen_3.txt solutions/solutions_3.txt`
+
 ## Ratkaisut
 
 Nykyisellä Joukahaisesta otetulla sanastolla: 
