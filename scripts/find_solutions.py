@@ -208,10 +208,6 @@ def find_solutions(wordlist, solutions_file):
     )
 
 
-# 3x3: 238 solutions found, 0.476 sec
-# 4x4: 25853 solutions found, 436 sec, optimized 63.9 sec with 25837 solutions (?!?!)
-#      22964 solutions, 48 sec.
-# 5x5: n. 12 tunnissa mun pelikoneella 0.3129% kandidaateista käsitelty, 30 ratkaisua
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Usage: find_solutions.py <wordlist> <solutions file>")
