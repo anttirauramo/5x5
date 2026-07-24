@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   backspaceKey: {
     width: 56,
-    backgroundColor: '#bcc1c9',
+    backgroundColor: '#c4d8f8',
   },
   keyText: {
     fontSize: 18,

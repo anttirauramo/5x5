@@ -1,12 +1,13 @@
 import React, {useState, useCallback, useMemo} from 'react';
-import {View, Text, StyleSheet, StatusBar, ImageBackground} from 'react-native';
+import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import VocabularySelector, {VocabularyOption} from './src/components/VocabularySelector';
+import VocabularySelector, {VocabularyOption, VOCABULARIES} from './src/components/VocabularySelector';
 import WordGrid from './src/components/WordGrid';
 import CustomKeyboard from './src/components/CustomKeyboard';
+import FlowerAnimation from './src/components/FlowerAnimation';
 import WORDLISTS from './src/generated/wordlists';
 
-const DEFAULT_VOCABULARY: VocabularyOption = {label: 'Suomi 5x5', gridSize: 5, wordlistFile: 'joukahainen_5.txt'};
+const DEFAULT_VOCABULARY: VocabularyOption = VOCABULARIES.find(v => v.wordlistFile === 'joukahainen_5.txt') || VOCABULARIES[0];
 
 function createEmptyGrid(size: number): string[][] {
   return Array.from({length: size}, () => Array(size).fill(''));
@@ -52,11 +53,48 @@ function App(): React.JSX.Element {
     });
   }, [letters, wordSet, vocabulary.gridSize]);
 
+  // Detect grid completion (all rows and columns are green)
+  const gridCompleted = useMemo(() => {
+    return rowStatuses.every(s => s === 'green') && colStatuses.every(s => s === 'green');
+  }, [rowStatuses, colStatuses]);
+
+  const [showFlowerAnimation, setShowFlowerAnimation] = useState(false);
+
+  // Trigger animation when grid is completed
+  React.useEffect(() => {
+    if (gridCompleted) {
+      setShowFlowerAnimation(true);
+    }
+  }, [gridCompleted]);
+
+  const [rulesVisible, setRulesVisible] = useState(false);
+
+  const handleReset = useCallback(() => {
+    if (letters.some(row => row.some(c => c !== ''))) {
+      Alert.alert(
+        'Tyhjennä ruudukko',
+        'Haluatko poistaa kaikki kirjaimet?',
+        [
+          {text: 'Peruuta', style: 'cancel'},
+          {
+            text: 'Tyhjennä',
+            onPress: () => {
+              setLetters(createEmptyGrid(vocabulary.gridSize));
+              setSelectedCell(null);
+              setShowFlowerAnimation(false);
+            },
+          },
+        ],
+      );
+    }
+  }, [letters, vocabulary.gridSize]);
+
   const handleVocabularyChange = useCallback((option: VocabularyOption) => {
     setVocabulary(option);
     setLetters(createEmptyGrid(option.gridSize));
     setSelectedCell(null);
     setKeyboardVisible(false);
+    setShowFlowerAnimation(false);
   }, []);
 
   const handleCellPress = useCallback((row: number, col: number) => {
@@ -140,6 +178,52 @@ function App(): React.JSX.Element {
           hasEnteredLetters={letters.some(row => row.some(c => c !== ''))}
         />
 
+        {/* Toolbar */}
+        <View style={styles.toolbar}>
+          <TouchableOpacity style={styles.toolbarButton} onPress={handleReset} activeOpacity={0.7}>
+            <Text style={styles.toolbarButtonText}>⟳</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.toolbarButton} activeOpacity={0.7}>
+            <Text style={styles.toolbarButtonText}> </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.toolbarButton} activeOpacity={0.7}>
+            <Text style={styles.toolbarButtonText}> </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.toolbarButton} onPress={() => setRulesVisible(true)} activeOpacity={0.7}>
+            <Text style={styles.toolbarButtonText}>?</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Rules modal */}
+        <Modal
+          visible={rulesVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setRulesVisible(false)}>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setRulesVisible(false)}>
+            <View style={styles.rulesModal}>
+              <Text style={styles.rulesTitle}>Säännöt</Text>
+              <Text style={styles.rulesText}>
+                Täytä ruudukko kirjaimilla siten, että jokainen rivi ja sarake muodostaa sanan sanalistasta.
+              </Text>
+              <Text style={styles.rulesText}>
+                Paina ruutua ja kirjoita kirjain näppäimistöllä. Rivin tai sarakkeen väripalkki muuttuu vihreäksi kun sana löytyy sanastosta, ja punaiseksi jos sanaa ei löydy.
+              </Text>
+              <Text style={styles.rulesText}>
+                Peli on ratkaistu kun kaikki rivit ja sarakkeet ovat vihreitä!
+              </Text>
+              <TouchableOpacity
+                style={styles.rulesCloseButton}
+                onPress={() => setRulesVisible(false)}>
+                <Text style={styles.rulesCloseText}>Sulje</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
         {/* Word grid */}
         <View style={styles.gridContainer}>
           <WordGrid
@@ -156,6 +240,9 @@ function App(): React.JSX.Element {
         <View style={styles.keyboardContainer}>
           <CustomKeyboard onKeyPress={handleKeyPress} onBackspace={handleBackspace} />
         </View>
+
+        {/* Flower animation on grid completion */}
+        <FlowerAnimation visible={showFlowerAnimation} />
       </View>
       </ImageBackground>
     </SafeAreaView>
@@ -190,6 +277,64 @@ const styles = StyleSheet.create({
   },
   keyboardContainer: {
     marginTop: 'auto',
+  },
+  toolbar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 20,
+  },
+  toolbarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#95b5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolbarButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rulesModal: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    marginHorizontal: 30,
+    maxWidth: 340,
+  },
+  rulesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  rulesText: {
+    fontSize: 15,
+    color: '#444',
+    marginBottom: 10,
+    lineHeight: 22,
+  },
+  rulesCloseButton: {
+    marginTop: 12,
+    backgroundColor: '#95b5f5',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  rulesCloseText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

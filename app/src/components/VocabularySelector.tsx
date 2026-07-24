@@ -8,6 +8,7 @@ import {
   FlatList,
   Alert,
 } from 'react-native';
+import WORDLISTS from '../generated/wordlists';
 
 export interface VocabularyOption {
   label: string;
@@ -15,12 +16,33 @@ export interface VocabularyOption {
   wordlistFile: string;
 }
 
-const VOCABULARIES: VocabularyOption[] = [
-  {label: 'Suomi 3x3', gridSize: 3, wordlistFile: 'joukahainen_3.txt'},
-  {label: 'Suomi 4x4', gridSize: 4, wordlistFile: 'joukahainen_4.txt'},
-  {label: 'Suomi 5x5', gridSize: 5, wordlistFile: 'joukahainen_5.txt'},
-  {label: 'Suomi 6x6', gridSize: 6, wordlistFile: 'joukahainen_6.txt'},
-];
+// Build vocabulary options dynamically from available wordlist files
+function buildVocabularyOptions(): VocabularyOption[] {
+  return Object.keys(WORDLISTS)
+    .map(key => {
+      const words = WORDLISTS[key];
+      if (!words || words.length === 0) {return null;}
+      const wordLength = words[0].length;
+      // Derive display name from filename: "joukahainen_5" -> "Joukahainen 5x5"
+      const parts = key.split('_');
+      const name = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      const label = `${name} ${wordLength}x${wordLength}`;
+      return {
+        label,
+        gridSize: wordLength,
+        wordlistFile: `${key}.txt`,
+      };
+    })
+    .filter((opt): opt is VocabularyOption => opt !== null)
+    .sort((a, b) => {
+      const nameA = a.label.split(' ')[0];
+      const nameB = b.label.split(' ')[0];
+      if (nameA !== nameB) {return nameA.localeCompare(nameB);}
+      return a.gridSize - b.gridSize;
+    });
+}
+
+export const VOCABULARIES = buildVocabularyOptions();
 
 interface Props {
   selected: VocabularyOption;
@@ -114,7 +136,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#4a90d9',
+    backgroundColor: '#7698db',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 6,
@@ -160,7 +182,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   dropdownItemTextSelected: {
-    color: '#4a90d9',
+    color: '#7698db',
     fontWeight: '600',
   },
 });
