@@ -4,12 +4,14 @@
   "private": true,
   "scripts": {
     "start": "react-native start",
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
-    "build:android:debug": "cd android && ./gradlew assembleDebug",
-    "build:android:release": "cd android && ./gradlew assembleRelease",
-    "build:ios:debug": "xcodebuild -workspace ios/FiveByFive.xcworkspace -scheme FiveByFive -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
-    "build:ios:release": "xcodebuild -workspace ios/FiveByFive.xcworkspace -scheme FiveByFive -configuration Release -sdk iphoneos -derivedDataPath ios/build",
+    "android": "yarn prepare:assets && react-native run-android",
+    "ios": "yarn prepare:assets && react-native run-ios",
+    "prepare:assets": "node scripts/encrypt-solutions.js",
+    "link:assets": "npx react-native-asset",
+    "build:android:debug": "yarn prepare:assets && cd android && ./gradlew assembleDebug",
+    "build:android:release": "yarn prepare:assets && cd android && ./gradlew assembleRelease",
+    "build:ios:debug": "yarn prepare:assets && xcodebuild -workspace ios/FiveByFive.xcworkspace -scheme FiveByFive -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
+    "build:ios:release": "yarn prepare:assets && xcodebuild -workspace ios/FiveByFive.xcworkspace -scheme FiveByFive -configuration Release -sdk iphoneos -derivedDataPath ios/build",
     "clean:android": "cd android && ./gradlew clean",
     "clean:ios": "rm -rf ios/build ios/Pods",
     "clean": "yarn clean:android && yarn clean:ios && rm -rf node_modules && yarn install",
@@ -18,9 +20,11 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native/new-app-screen": "0.86.0",
+    "crypto-js": "^4.2.0",
     "react": "19.2.3",
     "react-native": "0.86.0",
-    "@react-native/new-app-screen": "0.86.0",
+    "react-native-fs": "^2.20.0",
     "react-native-safe-area-context": "^5.5.2"
   },
   "devDependencies": {
@@ -34,6 +38,7 @@
     "@react-native/eslint-config": "0.86.0",
     "@react-native/metro-config": "0.86.0",
     "@react-native/typescript-config": "0.86.0",
+    "@types/crypto-js": "^4.2.2",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.2.0",
     "@types/react-test-renderer": "^19.1.0",
