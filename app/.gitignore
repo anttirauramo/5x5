@@ -74,8 +74,6 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 
-# Generated assets (created by scripts/encrypt-solutions.js)
-assets/solutions/
+# Generated assets (created by scripts/prepare-assets.js)
 assets/wordlists/
-android/app/src/main/assets/solutions/
 android/app/src/main/assets/wordlists/
