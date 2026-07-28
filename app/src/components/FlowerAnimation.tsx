@@ -10,9 +10,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import SakuraFlower from './SakuraFlower';
 
-const PETAL_COUNT = 105;
+const PETAL_COUNT = 210;
 const ANIMATION_DURATION = 6000;
-const LINGERING_PETALS = 20;
+const LINGERING_PETALS = 40;
 
 interface PetalConfig {
   x: number;

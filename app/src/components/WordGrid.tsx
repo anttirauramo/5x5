@@ -32,7 +32,7 @@ export default function WordGrid({gridSize, letters, selectedCell, onCellPress, 
   return (
     <View style={styles.container}>
       {/* Top bar (column statuses) */}
-      <View style={[styles.horizontalBarRow, {marginLeft: BAR_WIDTH + cellGap, gap: cellGap}]}>
+      <View style={[styles.horizontalBarRow, {marginLeft: BAR_WIDTH - cellGap, gap: cellGap}]}>
         {Array.from({length: gridSize}, (_, col) => (
           <View key={col} style={[styles.horizontalBarWrapper, {width: cellSize}]}>
             <View
@@ -108,7 +108,7 @@ export default function WordGrid({gridSize, letters, selectedCell, onCellPress, 
       </View>
 
       {/* Bottom bar (column statuses) */}
-      <View style={[styles.horizontalBarRow, {marginLeft: BAR_WIDTH + cellGap, gap: cellGap}]}>
+      <View style={[styles.horizontalBarRow, {marginLeft: BAR_WIDTH - cellGap, gap: cellGap}]}>
         {Array.from({length: gridSize}, (_, col) => (
           <View key={col} style={[styles.horizontalBarWrapper, {width: cellSize}]}>
             <View

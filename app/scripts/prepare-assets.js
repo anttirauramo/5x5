@@ -32,7 +32,7 @@ function copyWordlists() {
   ensureDir(WORDLISTS_DEST);
   ensureDir(ANDROID_WORDLISTS_DEST);
 
-  const files = fs.readdirSync(WORDLISTS_SRC).filter(f => f.endsWith('.txt'));
+  const files = fs.readdirSync(WORDLISTS_SRC).filter(f => f.endsWith('.txt') && !f.startsWith('joukahainen'));
   console.log(`Copying ${files.length} wordlist file(s)...`);
 
   for (const file of files) {

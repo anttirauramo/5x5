@@ -7,7 +7,7 @@ import CustomKeyboard from './src/components/CustomKeyboard';
 import FlowerAnimation from './src/components/FlowerAnimation';
 import WORDLISTS from './src/generated/wordlists';
 
-const DEFAULT_VOCABULARY: VocabularyOption = VOCABULARIES.find(v => v.wordlistFile === 'joukahainen_5.txt') || VOCABULARIES[0];
+const DEFAULT_VOCABULARY: VocabularyOption = VOCABULARIES.find(v => v.wordlistFile === 'nykysuomi_5.txt') || VOCABULARIES[0];
 
 function createEmptyGrid(size: number): string[][] {
   return Array.from({length: size}, () => Array(size).fill(''));
@@ -215,6 +215,13 @@ function App(): React.JSX.Element {
               <Text style={styles.rulesText}>
                 Peli on ratkaistu kun kaikki rivit ja sarakkeet ovat vihreitä!
               </Text>
+              <Text style={styles.rulesTitle}>Lisenssit</Text>
+              <Text style={styles.rulesText}>
+                Kotimaisten kielten keskuksen Nykysuomen sanalistaan, 
+                joka julkaistaan lisenssillä CC BY 4.0.
+              </Text>
+
+
               <TouchableOpacity
                 style={styles.rulesCloseButton}
                 onPress={() => setRulesVisible(false)}>
