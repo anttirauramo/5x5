@@ -1,4 +1,8 @@
 {
   "name": "FiveByFive",
-  "displayName": "FiveByFive"
+  "displayName": "FiveByFive",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-1462213173248963~4533191234",
+    "ios_app_id": "ca-app-pub-1462213173248963~4533191234"
+  }
 }

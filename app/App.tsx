@@ -7,6 +7,7 @@ import CustomKeyboard from './src/components/CustomKeyboard';
 import FlowerAnimation from './src/components/FlowerAnimation';
 import WORDLISTS from './src/generated/wordlists';
 import {getLastWordOfTheDay, getLastWordInfo, hasLastWords} from './src/utils/lastWords';
+import {BannerAd, BannerAdSize} from 'react-native-google-mobile-ads';
 
 const DEFAULT_VOCABULARY: VocabularyOption = VOCABULARIES.find(v => v.wordlistFile === 'nykysuomi_5.txt') || VOCABULARIES[0];
 
@@ -168,9 +169,12 @@ function App(): React.JSX.Element {
         imageStyle={{opacity: 0.5}}
         resizeMode="cover">
         <View style={styles.container}>
-        {/* Ad banner placeholder */}
+        {/* Ad banner */}
         <View style={styles.adBanner}>
-          <Text style={styles.adBannerText}>Ad Banner</Text>
+          <BannerAd
+            unitId="ca-app-pub-1462213173248963/1907027897"
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          />
         </View>
 
         {/* Vocabulary selector */}
@@ -317,16 +321,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   adBanner: {
-    height: 50,
-    backgroundColor: '#f0f0f0',
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-  },
-  adBannerText: {
-    color: '#999',
-    fontSize: 14,
   },
   gridContainer: {
     flex: 1,
