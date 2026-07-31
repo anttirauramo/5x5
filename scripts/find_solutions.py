@@ -2,6 +2,8 @@ import io
 import os
 import re
 import multiprocessing
+import multiprocessing.pool
+import queue
 import sys
 import time
 import datetime
@@ -11,6 +13,7 @@ from logging.handlers import QueueHandler, QueueListener
 PROCESSES = 12
 SHOW_SOLUTIONS = False
 WORKER_LOGGER = None
+USE_MULTIPROCESS = False
 
 
 def create_solution_logger(solutions_file, cwd):
@@ -149,10 +152,19 @@ def find_solutions(wordlist, solutions_file):
         for k in range(1, word_length):
             valid_prefixes.add(word[:k])
 
-    log_queue = multiprocessing.Queue()
-    pool = multiprocessing.Pool(
-        processes=PROCESSES, initializer=init_worker_logger, initargs=(log_queue,)
-    )
+    if USE_MULTIPROCESS:
+        log_queue = multiprocessing.Queue()
+    else:
+        log_queue = queue.Queue()
+
+    if USE_MULTIPROCESS:
+        pool = multiprocessing.Pool(
+            processes=PROCESSES, initializer=init_worker_logger, initargs=(log_queue,)
+        )
+    else:
+        pool = multiprocessing.pool.ThreadPool(
+            processes=PROCESSES, initializer=init_worker_logger, initargs=(log_queue,)
+        )
     job_count = 0
     results = []
 
@@ -182,7 +194,8 @@ def find_solutions(wordlist, solutions_file):
                     )
                 )
 
-    print(f"Pooled {job_count} jobs in {PROCESSES} processes\n...")
+    mode = "processes" if USE_MULTIPROCESS else "threads"
+    print(f"Pooled {job_count} jobs in {PROCESSES} {mode}\n...")
 
     result_count = 0
     solution_count = 0
@@ -209,9 +222,12 @@ def find_solutions(wordlist, solutions_file):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: find_solutions.py <wordlist> <solutions file>")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if "--multiprocess" in sys.argv:
+        USE_MULTIPROCESS = True
+    if len(args) < 2:
+        print("Usage: find_solutions.py <wordlist> <solutions file> [--multiprocess]")
         sys.exit(1)
-    wordlist = sys.argv[1]
-    solutions_file = sys.argv[2]
+    wordlist = args[0]
+    solutions_file = args[1]
     find_solutions(wordlist, solutions_file)
