@@ -65,6 +65,7 @@ def main():
     )
     parser.add_argument("solutions_file", help="Path to solutions text file")
     parser.add_argument("--print-pairs", action="store_true", help="Print the unique word pairs")
+    parser.add_argument("--print-words", action="store_true", help="Print the unique words in pairs")
     args = parser.parse_args()
 
     pairs = collect_unique_pairs(Path(args.solutions_file))
@@ -72,10 +73,14 @@ def main():
     if args.print_pairs:
         for pair in sorted(pairs):
             print(pair)
-
     different = {p for p in pairs if p[0] != p[1]}
 
     print(f"{len(pairs)} unique (last_column_word, last_row_word) pairs found, of which {len(different)} have different words")
+
+    if args.print_words:
+        unique_words = {w for pair in pairs for w in pair}
+        for word in sorted(unique_words):
+            print(word)
 
 
 if __name__ == "__main__":

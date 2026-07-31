@@ -77,6 +77,9 @@ Joukahainen on julkaistu GPL-lisenssillä ja se ei siksi ole mobiilisovelluksess
 Kotimaisten kielten keskuksen Nykysuomen sanalista on Kielitoimiston sanakirjan hakusanoihin perustuva, päivitettävä sanalista. Siinä on yli satatuhatta taivutus- ja sanaluokkatiedoin varustettua sanaa.
 
 * 3x3: 10355 ratkaisua
-* 4x4: 22964 ratkaisua
+* 4x4: 177709 ratkaisua
+* 5x5: 95685 ratkaisua (noin 19 tuntia macbookilla)
+
+Tällä sanalistalla 5x5-ratkaisuista kymmenen sanan ratkaisuja on 14823.
 
 Sanalista julkaistaan lisenssillä CC BY 4.0.

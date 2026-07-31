@@ -6,6 +6,7 @@ import WordGrid from './src/components/WordGrid';
 import CustomKeyboard from './src/components/CustomKeyboard';
 import FlowerAnimation from './src/components/FlowerAnimation';
 import WORDLISTS from './src/generated/wordlists';
+import {getLastWordOfTheDay, getLastWordInfo, hasLastWords} from './src/utils/lastWords';
 
 const DEFAULT_VOCABULARY: VocabularyOption = VOCABULARIES.find(v => v.wordlistFile === 'nykysuomi_5.txt') || VOCABULARIES[0];
 
@@ -19,13 +20,15 @@ function App(): React.JSX.Element {
   const [vocabulary, setVocabulary] = useState<VocabularyOption>(DEFAULT_VOCABULARY);
   const [letters, setLetters] = useState<string[][]>(createEmptyGrid(DEFAULT_VOCABULARY.gridSize));
   const [selectedCell, setSelectedCell] = useState<{row: number; col: number} | null>(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   // Load wordlist from bundled module
+  const wordlistKey = vocabulary.wordlistFile.replace('.txt', '');
+
   const wordSet = useMemo(() => {
-    const key = vocabulary.wordlistFile.replace('.txt', '');
-    const words = WORDLISTS[key] || [];
+    const words = WORDLISTS[wordlistKey] || [];
     return new Set(words.map(w => w.toUpperCase()));
-  }, [vocabulary]);
+  }, [wordlistKey]);
+
+  const lastWordAvailable = hasLastWords(wordlistKey);
 
   // Compute row statuses
   const rowStatuses: CellStatus[] = useMemo(() => {
@@ -68,6 +71,8 @@ function App(): React.JSX.Element {
   }, [gridCompleted]);
 
   const [rulesVisible, setRulesVisible] = useState(false);
+  const [lastWordVisible, setLastWordVisible] = useState(false);
+  const [lastWordRevealed, setLastWordRevealed] = useState(false);
 
   const handleReset = useCallback(() => {
     if (letters.some(row => row.some(c => c !== ''))) {
@@ -93,13 +98,11 @@ function App(): React.JSX.Element {
     setVocabulary(option);
     setLetters(createEmptyGrid(option.gridSize));
     setSelectedCell(null);
-    setKeyboardVisible(false);
     setShowFlowerAnimation(false);
   }, []);
 
   const handleCellPress = useCallback((row: number, col: number) => {
     setSelectedCell({row, col});
-    setKeyboardVisible(true);
   }, []);
 
   const handleKeyPress = useCallback(
@@ -120,7 +123,6 @@ function App(): React.JSX.Element {
         setSelectedCell({row: row + 1, col: 0});
       } else {
         setSelectedCell(null);
-        setKeyboardVisible(false);
       }
     },
     [selectedCell, vocabulary.gridSize],
@@ -183,8 +185,8 @@ function App(): React.JSX.Element {
           <TouchableOpacity style={styles.toolbarButton} onPress={handleReset} activeOpacity={0.7}>
             <Text style={styles.toolbarButtonText}>⟳</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} activeOpacity={0.7}>
-            <Text style={styles.toolbarButtonText}> </Text>
+          <TouchableOpacity style={styles.toolbarButton} onPress={() => { setLastWordRevealed(false); setLastWordVisible(true); }} activeOpacity={0.7}>
+            <Text style={styles.toolbarButtonText}>◆</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} activeOpacity={0.7}>
             <Text style={styles.toolbarButtonText}> </Text>
@@ -225,6 +227,54 @@ function App(): React.JSX.Element {
               <TouchableOpacity
                 style={styles.rulesCloseButton}
                 onPress={() => setRulesVisible(false)}>
+                <Text style={styles.rulesCloseText}>Sulje</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Päivän viimeinen sana modal */}
+        <Modal
+          visible={lastWordVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setLastWordVisible(false)}>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setLastWordVisible(false)}>
+            <View style={styles.rulesModal}>
+              <Text style={styles.rulesTitle}>Päivän viimeinen sana</Text>
+              {lastWordAvailable ? (
+                <>
+                  <Text style={styles.rulesText}>
+                    Alla oleva painike näyttää sanan, jota voit käyttää viimeisellä rivillä tai sarakkeella. Tälle sanalle löytyy vähintään yksi ratkaisu.
+                  </Text>
+                  {lastWordRevealed ? (
+                    <View style={styles.lastWordContainer}>
+                      <Text style={styles.lastWordText}>
+                        {getLastWordOfTheDay(wordlistKey)}
+                      </Text>
+                      <Text style={styles.lastWordIndex}>
+                        #{(getLastWordInfo(wordlistKey)?.index ?? 0) + 1}/{getLastWordInfo(wordlistKey)?.count ?? 0}
+                      </Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.rulesCloseButton}
+                      onPress={() => setLastWordRevealed(true)}>
+                      <Text style={styles.rulesCloseText}>Näytä sana</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.rulesText}>
+                  Tälle sanastolle ei ole saatavilla päivän viimeistä sanaa.
+                </Text>
+              )}
+              <TouchableOpacity
+                style={[styles.rulesCloseButton, {marginTop: 16}]}
+                onPress={() => setLastWordVisible(false)}>
                 <Text style={styles.rulesCloseText}>Sulje</Text>
               </TouchableOpacity>
             </View>
@@ -342,6 +392,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  lastWordContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#f0f4ff',
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  lastWordText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    letterSpacing: 4,
+  },
+  lastWordIndex: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 6,
   },
 });
 

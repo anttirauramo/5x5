@@ -95,7 +95,7 @@ export default function FlowerAnimation({visible}: Props) {
 
   useEffect(() => {
     if (visible) {
-      progress.value = 0;
+      progress.value = 0.1;
       progress.value = withTiming(1, {
         duration: ANIMATION_DURATION,
         easing: Easing.out(Easing.cubic),
