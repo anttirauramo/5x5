@@ -29,6 +29,11 @@ allprojects {
             mavenCentral()
         }
     }
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        compilerOptions {
+            freeCompilerArgs.add("-Xskip-metadata-version-check")
+        }
+    }
 }
 
 apply plugin: "com.facebook.react.rootproject"

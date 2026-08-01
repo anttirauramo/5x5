@@ -77,3 +77,4 @@ yarn-error.log
 # Generated assets (created by scripts/prepare-assets.js)
 assets/wordlists/
 android/app/src/main/assets/wordlists/
+android/app/release.keystore

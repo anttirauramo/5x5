@@ -83,3 +83,16 @@ Kotimaisten kielten keskuksen Nykysuomen sanalista on Kielitoimiston sanakirjan 
 Tällä sanalistalla 5x5-ratkaisuista kymmenen sanan ratkaisuja on 14823.
 
 Sanalista julkaistaan lisenssillä CC BY 4.0.
+
+### Svenska Akademiens ordlista (SAOL)
+
+Ruotsinkielen sanasto perustuu Ruotsin Akatemian julkaisemaan sanalistaan (SAOL). 
+SAOL on vapaasti ladattavissa ja käytettävissä. 
+
+https://www.gu.se/svenska-spraket/saol-svenska-akademiens-ordlista
+
+### Englanninkieliset sanat
+
+Englanninkielinen sanalista on tästä projektista: https://github.com/dwyl/english-words 
+
+Projekti on julkaistu Unlicense-mallilla public domainiin. 

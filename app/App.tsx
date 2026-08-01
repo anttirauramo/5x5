@@ -1,13 +1,16 @@
 import React, {useState, useCallback, useMemo} from 'react';
-import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert} from 'react-native';
+import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, FlatList, Linking} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import VocabularySelector, {VocabularyOption, VOCABULARIES} from './src/components/VocabularySelector';
 import WordGrid from './src/components/WordGrid';
 import CustomKeyboard from './src/components/CustomKeyboard';
 import FlowerAnimation from './src/components/FlowerAnimation';
-import WORDLISTS from './src/generated/wordlists';
+import SOLUTION_COUNTS from './src/generated/solutionCounts';
+import {getWordlist} from './src/utils/wordlists';
 import {getLastWordOfTheDay, getLastWordInfo, hasLastWords} from './src/utils/lastWords';
+import {saveSolvedGrid, loadSolvedGrids, SolvedGrid} from './src/utils/solvedGrids';
 import {BannerAd, BannerAdSize} from 'react-native-google-mobile-ads';
+import {getLanguageForWordlist, getTranslations, getLicenseForWordlist} from './src/i18n/translations';
 
 const DEFAULT_VOCABULARY: VocabularyOption = VOCABULARIES.find(v => v.wordlistFile === 'nykysuomi_5.txt') || VOCABULARIES[0];
 
@@ -20,12 +23,14 @@ export type CellStatus = 'white' | 'green' | 'red';
 function App(): React.JSX.Element {
   const [vocabulary, setVocabulary] = useState<VocabularyOption>(DEFAULT_VOCABULARY);
   const [letters, setLetters] = useState<string[][]>(createEmptyGrid(DEFAULT_VOCABULARY.gridSize));
-  const [selectedCell, setSelectedCell] = useState<{row: number; col: number} | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{row: number; col: number}>({row: 0, col: 0});
   // Load wordlist from bundled module
   const wordlistKey = vocabulary.wordlistFile.replace('.txt', '');
+  const language = getLanguageForWordlist(wordlistKey);
+  const t = getTranslations(language);
 
   const wordSet = useMemo(() => {
-    const words = WORDLISTS[wordlistKey] || [];
+    const words = getWordlist(wordlistKey);
     return new Set(words.map(w => w.toUpperCase()));
   }, [wordlistKey]);
 
@@ -63,43 +68,74 @@ function App(): React.JSX.Element {
   }, [rowStatuses, colStatuses]);
 
   const [showFlowerAnimation, setShowFlowerAnimation] = useState(false);
+  const [hasTriggeredAnimation, setHasTriggeredAnimation] = useState(false);
 
-  // Trigger animation when grid is completed
-  React.useEffect(() => {
-    if (gridCompleted) {
-      setShowFlowerAnimation(true);
+  // Reset animation on any letter change
+  const handleLettersChange = useCallback((newLetters: string[][]) => {
+    setLetters(newLetters);
+    if (showFlowerAnimation) {
+      setShowFlowerAnimation(false);
+      setHasTriggeredAnimation(false);
     }
-  }, [gridCompleted]);
+  }, [showFlowerAnimation]);
+
+  // Trigger animation when grid is freshly completed
+  React.useEffect(() => {
+    if (gridCompleted && !hasTriggeredAnimation) {
+      setShowFlowerAnimation(true);
+      setHasTriggeredAnimation(true);
+      saveSolvedGrid(letters, vocabulary.wordlistFile);
+    }
+  }, [gridCompleted, hasTriggeredAnimation, letters, vocabulary.wordlistFile]);
 
   const [rulesVisible, setRulesVisible] = useState(false);
   const [lastWordVisible, setLastWordVisible] = useState(false);
   const [lastWordRevealed, setLastWordRevealed] = useState(false);
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [solvedGrids, setSolvedGrids] = useState<SolvedGrid[]>([]);
+  const [foundCount, setFoundCount] = useState(0);
+
+  // Load found count on mount and when vocabulary changes
+  React.useEffect(() => {
+    loadSolvedGrids().then(grids => {
+      const count = grids.filter(g => g.wordlistFile === vocabulary.wordlistFile).length;
+      setFoundCount(count);
+    });
+  }, [vocabulary.wordlistFile, showFlowerAnimation]);
+
+  const handleOpenHistory = useCallback(async () => {
+    const grids = await loadSolvedGrids();
+    setSolvedGrids(grids);
+    setHistoryVisible(true);
+  }, []);
 
   const handleReset = useCallback(() => {
     if (letters.some(row => row.some(c => c !== ''))) {
       Alert.alert(
-        'Tyhjennä ruudukko',
-        'Haluatko poistaa kaikki kirjaimet?',
+        t.resetTitle,
+        t.resetMessage,
         [
-          {text: 'Peruuta', style: 'cancel'},
+          {text: t.resetCancel, style: 'cancel'},
           {
-            text: 'Tyhjennä',
+            text: t.resetConfirm,
             onPress: () => {
               setLetters(createEmptyGrid(vocabulary.gridSize));
-              setSelectedCell(null);
+              setSelectedCell({row: 0, col: 0});
               setShowFlowerAnimation(false);
+              setHasTriggeredAnimation(false);
             },
           },
         ],
       );
     }
-  }, [letters, vocabulary.gridSize]);
+  }, [letters, vocabulary.gridSize, t]);
 
   const handleVocabularyChange = useCallback((option: VocabularyOption) => {
     setVocabulary(option);
     setLetters(createEmptyGrid(option.gridSize));
-    setSelectedCell(null);
+    setSelectedCell({row: 0, col: 0});
     setShowFlowerAnimation(false);
+    setHasTriggeredAnimation(false);
   }, []);
 
   const handleCellPress = useCallback((row: number, col: number) => {
@@ -108,12 +144,9 @@ function App(): React.JSX.Element {
 
   const handleKeyPress = useCallback(
     (letter: string) => {
-      if (!selectedCell) {return;}
-      setLetters(prev => {
-        const updated = prev.map(r => [...r]);
-        updated[selectedCell.row][selectedCell.col] = letter;
-        return updated;
-      });
+      const updated = letters.map(r => [...r]);
+      updated[selectedCell.row][selectedCell.col] = letter;
+      handleLettersChange(updated);
       // Advance to next cell
       const {row, col} = selectedCell;
       const gridSize = vocabulary.gridSize;
@@ -122,43 +155,35 @@ function App(): React.JSX.Element {
         setSelectedCell({row, col: nextCol});
       } else if (row + 1 < gridSize) {
         setSelectedCell({row: row + 1, col: 0});
-      } else {
-        setSelectedCell(null);
       }
+      // Stay on bottom-right cell after filling it
     },
-    [selectedCell, vocabulary.gridSize],
+    [selectedCell, vocabulary.gridSize, letters, handleLettersChange],
   );
 
   const handleBackspace = useCallback(() => {
-    if (!selectedCell) {return;}
     const {row, col} = selectedCell;
     if (letters[row][col]) {
-      setLetters(prev => {
-        const updated = prev.map(r => [...r]);
-        updated[row][col] = '';
-        return updated;
-      });
+      const updated = letters.map(r => [...r]);
+      updated[row][col] = '';
+      handleLettersChange(updated);
     } else {
       const prevCol = col - 1;
       if (prevCol >= 0) {
         setSelectedCell({row, col: prevCol});
-        setLetters(prev => {
-          const updated = prev.map(r => [...r]);
-          updated[row][prevCol] = '';
-          return updated;
-        });
+        const updated = letters.map(r => [...r]);
+        updated[row][prevCol] = '';
+        handleLettersChange(updated);
       } else if (row - 1 >= 0) {
         const newRow = row - 1;
         const newCol = vocabulary.gridSize - 1;
         setSelectedCell({row: newRow, col: newCol});
-        setLetters(prev => {
-          const updated = prev.map(r => [...r]);
-          updated[newRow][newCol] = '';
-          return updated;
-        });
+        const updated = letters.map(r => [...r]);
+        updated[newRow][newCol] = '';
+        handleLettersChange(updated);
       }
     }
-  }, [selectedCell, letters, vocabulary.gridSize]);
+  }, [selectedCell, letters, vocabulary.gridSize, handleLettersChange]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -182,18 +207,22 @@ function App(): React.JSX.Element {
           selected={vocabulary}
           onSelect={handleVocabularyChange}
           hasEnteredLetters={letters.some(row => row.some(c => c !== ''))}
+          vocabChangeTitle={t.vocabChangeTitle}
+          vocabChangeMessage={t.vocabChangeMessage}
+          vocabChangeCancel={t.vocabChangeCancel}
+          vocabChangeConfirm={t.vocabChangeConfirm}
         />
 
         {/* Toolbar */}
         <View style={styles.toolbar}>
           <TouchableOpacity style={styles.toolbarButton} onPress={handleReset} activeOpacity={0.7}>
-            <Text style={styles.toolbarButtonText}>⟳</Text>
+            <Text style={styles.toolbarButtonText}>↻</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} onPress={() => { setLastWordRevealed(false); setLastWordVisible(true); }} activeOpacity={0.7}>
-            <Text style={styles.toolbarButtonText}>◆</Text>
+            <Text style={styles.toolbarButtonText}>🗓︎</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} activeOpacity={0.7}>
-            <Text style={styles.toolbarButtonText}> </Text>
+          <TouchableOpacity style={styles.toolbarButton} onPress={handleOpenHistory} activeOpacity={0.7}>
+            <Text style={styles.toolbarButtonText}>☑</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} onPress={() => setRulesVisible(true)} activeOpacity={0.7}>
             <Text style={styles.toolbarButtonText}>?</Text>
@@ -211,27 +240,30 @@ function App(): React.JSX.Element {
             activeOpacity={1}
             onPress={() => setRulesVisible(false)}>
             <View style={styles.rulesModal}>
-              <Text style={styles.rulesTitle}>Säännöt</Text>
-              <Text style={styles.rulesText}>
-                Täytä ruudukko kirjaimilla siten, että jokainen rivi ja sarake muodostaa sanan sanalistasta.
-              </Text>
-              <Text style={styles.rulesText}>
-                Paina ruutua ja kirjoita kirjain näppäimistöllä. Rivin tai sarakkeen väripalkki muuttuu vihreäksi kun sana löytyy sanastosta, ja punaiseksi jos sanaa ei löydy.
-              </Text>
-              <Text style={styles.rulesText}>
-                Peli on ratkaistu kun kaikki rivit ja sarakkeet ovat vihreitä!
-              </Text>
-              <Text style={styles.rulesTitle}>Lisenssit</Text>
-              <Text style={styles.rulesText}>
-                Kotimaisten kielten keskuksen Nykysuomen sanalistaan, 
-                joka julkaistaan lisenssillä CC BY 4.0.
-              </Text>
-
-
+              <Text style={styles.rulesTitle}>{t.rulesTitle}</Text>
+              <Text style={styles.rulesText}>{t.rulesText1}</Text>
+              <Text style={styles.rulesText}>{t.rulesText2}</Text>
+              <Text style={styles.rulesText}>{t.rulesText3}</Text>
+              {getLicenseForWordlist(wordlistKey) && (
+                <>
+                  <Text style={[styles.rulesTitle, {fontSize: 16, marginTop: 14}]}>{t.licensesTitle}</Text>
+                  <Text style={styles.rulesText}>
+                    {getLicenseForWordlist(wordlistKey)!.name}: {getLicenseForWordlist(wordlistKey)!.description}
+                  </Text>
+                  <Text style={[styles.rulesText, {fontStyle: 'italic'}]}>
+                    {getLicenseForWordlist(wordlistKey)!.license}
+                  </Text>
+                  {getLicenseForWordlist(wordlistKey)!.url && (
+                    <TouchableOpacity onPress={() => Linking.openURL(getLicenseForWordlist(wordlistKey)!.url!)}>
+                      <Text style={styles.licenseLink}>{getLicenseForWordlist(wordlistKey)!.url}</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
               <TouchableOpacity
                 style={styles.rulesCloseButton}
                 onPress={() => setRulesVisible(false)}>
-                <Text style={styles.rulesCloseText}>Sulje</Text>
+                <Text style={styles.rulesCloseText}>{t.rulesClose}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -248,11 +280,11 @@ function App(): React.JSX.Element {
             activeOpacity={1}
             onPress={() => setLastWordVisible(false)}>
             <View style={styles.rulesModal}>
-              <Text style={styles.rulesTitle}>Päivän viimeinen sana</Text>
+              <Text style={styles.rulesTitle}>{t.lastWordTitle}</Text>
               {lastWordAvailable ? (
                 <>
                   <Text style={styles.rulesText}>
-                    Alla oleva painike näyttää sanan, jota voit käyttää viimeisellä rivillä tai sarakkeella. Tälle sanalle löytyy vähintään yksi ratkaisu.
+                    {lastWordRevealed ? t.lastWordExplanationRevealed : t.lastWordExplanation}
                   </Text>
                   {lastWordRevealed ? (
                     <View style={styles.lastWordContainer}>
@@ -267,23 +299,81 @@ function App(): React.JSX.Element {
                     <TouchableOpacity
                       style={styles.rulesCloseButton}
                       onPress={() => setLastWordRevealed(true)}>
-                      <Text style={styles.rulesCloseText}>Näytä sana</Text>
+                      <Text style={styles.rulesCloseText}>{t.lastWordRevealButton}</Text>
                     </TouchableOpacity>
                   )}
                 </>
               ) : (
                 <Text style={styles.rulesText}>
-                  Tälle sanastolle ei ole saatavilla päivän viimeistä sanaa.
+                  {t.lastWordNotAvailable}
                 </Text>
               )}
               <TouchableOpacity
                 style={[styles.rulesCloseButton, {marginTop: 16}]}
                 onPress={() => setLastWordVisible(false)}>
-                <Text style={styles.rulesCloseText}>Sulje</Text>
+                <Text style={styles.rulesCloseText}>{t.lastWordClose}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </Modal>
+
+        {/* History modal */}
+        <Modal
+          visible={historyVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setHistoryVisible(false)}>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setHistoryVisible(false)}>
+            <View style={[styles.rulesModal, styles.historyModal]}>
+              <Text style={styles.rulesTitle}>{t.rulesClose === 'Close' ? 'Solutions Found' : t.rulesClose === 'Stäng' ? 'Hittade lösningar' : 'Löydetyt ratkaisut'}</Text>
+              {solvedGrids.length === 0 ? (
+                <Text style={styles.rulesText}>
+                  {language === 'en' ? 'No solutions found yet.' : language === 'sv' ? 'Inga lösningar hittade ännu.' : 'Ei löydettyjä ratkaisuja.'}
+                </Text>
+              ) : (
+                <FlatList
+                  data={solvedGrids}
+                  keyExtractor={(item, index) => `${item.solvedAt}-${index}`}
+                  style={styles.historyList}
+                  renderItem={({item}) => (
+                    <View style={styles.historyItem}>
+                      <View style={styles.historyGrid}>
+                        {item.grid.map((row, rowIdx) => (
+                          <Text key={rowIdx} style={styles.historyGridRow}>
+                            {row.join('')}
+                          </Text>
+                        ))}
+                      </View>
+                      <View style={styles.historyMeta}>
+                        <Text style={styles.historyMetaText}>
+                          {item.wordlistFile.replace('.txt', '')}
+                        </Text>
+                        <Text style={styles.historyMetaDate}>
+                          {new Date(item.solvedAt).toLocaleString('fi-FI', {day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'})}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                />
+              )}
+              <TouchableOpacity
+                style={[styles.rulesCloseButton, {marginTop: 12}]}
+                onPress={() => setHistoryVisible(false)}>
+                <Text style={styles.rulesCloseText}>{t.rulesClose}</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Solution counter */}
+        <View style={styles.solutionCounter}>
+          <Text style={styles.solutionCounterText}>
+            {foundCount} / {SOLUTION_COUNTS[wordlistKey] ?? '?'}
+          </Text>
+        </View>
 
         {/* Word grid */}
         <View style={styles.gridContainer}>
@@ -408,6 +498,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#888',
     marginTop: 6,
+  },
+  historyModal: {
+    maxHeight: '70%',
+  },
+  historyList: {
+    maxHeight: 300,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    alignItems: 'center',
+  },
+  historyGrid: {
+    marginRight: 12,
+  },
+  historyGridRow: {
+    fontFamily: 'monospace',
+    fontSize: 13,
+    letterSpacing: 2,
+    color: '#333',
+  },
+  historyMeta: {
+    flex: 1,
+  },
+  historyMetaText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  historyMetaDate: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 2,
+  },
+  licenseLink: {
+    fontSize: 13,
+    color: '#4a90d9',
+    textDecorationLine: 'underline',
+    marginBottom: 8,
+  },
+  solutionCounter: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  solutionCounterText: {
+    fontSize: 13,
+    color: '#555',
+    fontWeight: '500',
   },
 });
 

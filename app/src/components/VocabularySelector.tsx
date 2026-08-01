@@ -8,7 +8,7 @@ import {
   FlatList,
   Alert,
 } from 'react-native';
-import WORDLISTS from '../generated/wordlists';
+import {getWordlist, getWordlistKeys} from '../utils/wordlists';
 
 export interface VocabularyOption {
   label: string;
@@ -18,9 +18,9 @@ export interface VocabularyOption {
 
 // Build vocabulary options dynamically from available wordlist files
 function buildVocabularyOptions(): VocabularyOption[] {
-  return Object.keys(WORDLISTS)
+  return getWordlistKeys()
     .map(key => {
-      const words = WORDLISTS[key];
+      const words = getWordlist(key);
       if (!words || words.length === 0) {return null;}
       const wordLength = words[0].length;
       // Derive display name from filename: "joukahainen_5" -> "Joukahainen 5x5"
@@ -48,9 +48,13 @@ interface Props {
   selected: VocabularyOption;
   onSelect: (option: VocabularyOption) => void;
   hasEnteredLetters: boolean;
+  vocabChangeTitle: string;
+  vocabChangeMessage: string;
+  vocabChangeCancel: string;
+  vocabChangeConfirm: string;
 }
 
-export default function VocabularySelector({selected, onSelect, hasEnteredLetters}: Props) {
+export default function VocabularySelector({selected, onSelect, hasEnteredLetters, vocabChangeTitle, vocabChangeMessage, vocabChangeCancel, vocabChangeConfirm}: Props) {
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
   const handleOptionPress = (option: VocabularyOption) => {
@@ -61,12 +65,12 @@ export default function VocabularySelector({selected, onSelect, hasEnteredLetter
 
     if (hasEnteredLetters) {
       Alert.alert(
-        'Vaihda sanasto',
-        'Ruudukkoon syötetyt kirjaimet häviävät. Haluatko jatkaa?',
+        vocabChangeTitle,
+        vocabChangeMessage,
         [
-          {text: 'Peruuta', style: 'cancel'},
+          {text: vocabChangeCancel, style: 'cancel'},
           {
-            text: 'Vaihda',
+            text: vocabChangeConfirm,
             onPress: () => {
               onSelect(option);
               setDropdownVisible(false);
@@ -161,7 +165,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     width: 200,
-    maxHeight: 300,
+    maxHeight: 500,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
