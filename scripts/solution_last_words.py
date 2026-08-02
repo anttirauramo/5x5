@@ -6,30 +6,6 @@ def normalize_word(line: str) -> str:
     return "".join(line.strip().split())
 
 
-def parse_blocks(text: str):
-    blocks = []
-    current = []
-
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
-        if line.startswith("find_solutions"):
-            continue
-
-        if line == "---":
-            if current:
-                blocks.append(current)
-                current = []
-            continue
-
-        if line:
-            current.append(line)
-
-    if current:
-        blocks.append(current)
-
-    return blocks
-
-
 def extract_last_words(block):
     words = [normalize_word(line) for line in block if normalize_word(line)]
     if not words:
@@ -44,11 +20,38 @@ def extract_last_words(block):
     return last_col, last_row
 
 
+def stream_solutions(file_path: Path):
+    """Stream solutions from file one block at a time, yielding each block."""
+    current = []
+    first_line = True
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        for raw_line in f:
+            line = raw_line.strip()
+
+            # Skip metadata header line
+            if first_line and line.startswith("find_solutions"):
+                first_line = False
+                continue
+            first_line = False
+
+            if line == "---":
+                if current:
+                    yield current
+                    current = []
+                continue
+
+            if line:
+                current.append(line)
+
+    if current:
+        yield current
+
+
 def collect_unique_pairs(file_path: Path):
-    content = file_path.read_text(encoding="utf-8")
     pairs = set()
 
-    for block in parse_blocks(content):
+    for block in stream_solutions(file_path):
         pair = extract_last_words(block)
         if pair is not None:
             pairs.add(pair)
