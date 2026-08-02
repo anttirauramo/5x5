@@ -78,3 +78,4 @@ yarn-error.log
 assets/wordlists/
 android/app/src/main/assets/wordlists/
 android/app/release.keystore
+.env

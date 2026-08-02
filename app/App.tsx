@@ -1,5 +1,5 @@
 import React, {useState, useCallback, useMemo} from 'react';
-import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, FlatList, Linking} from 'react-native';
+import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, FlatList, Linking, TextInput} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import VocabularySelector, {VocabularyOption, VOCABULARIES} from './src/components/VocabularySelector';
 import WordGrid from './src/components/WordGrid';
@@ -9,6 +9,7 @@ import SOLUTION_COUNTS from './src/generated/solutionCounts';
 import {getWordlist} from './src/utils/wordlists';
 import {getLastWordOfTheDay, getLastWordInfo, hasLastWords} from './src/utils/lastWords';
 import {saveSolvedGrid, loadSolvedGrids, SolvedGrid} from './src/utils/solvedGrids';
+import {getUserProfile, registerUser, UserProfile} from './src/utils/userProfile';
 import {BannerAd, BannerAdSize} from 'react-native-google-mobile-ads';
 import {getLanguageForWordlist, getTranslations, getLicenseForWordlist} from './src/i18n/translations';
 
@@ -94,6 +95,35 @@ function App(): React.JSX.Element {
   const [historyVisible, setHistoryVisible] = useState(false);
   const [solvedGrids, setSolvedGrids] = useState<SolvedGrid[]>([]);
   const [foundCount, setFoundCount] = useState(0);
+  const [highscoresVisible, setHighscoresVisible] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [registerNick, setRegisterNick] = useState('');
+  const [registerError, setRegisterError] = useState('');
+  const [registering, setRegistering] = useState(false);
+
+  // Load user profile on mount
+  React.useEffect(() => {
+    getUserProfile().then(setUserProfile);
+  }, []);
+
+  const handleRegister = useCallback(async () => {
+    const nick = registerNick.trim();
+    if (!nick) {
+      setRegisterError(language === 'en' ? 'Enter a nickname' : language === 'sv' ? 'Ange ett smeknamn' : 'Syötä nimimerkki');
+      return;
+    }
+    setRegistering(true);
+    setRegisterError('');
+    try {
+      const profile = await registerUser(nick);
+      setUserProfile(profile);
+      setRegisterNick('');
+    } catch (e: any) {
+      setRegisterError(e.message || 'Registration failed');
+    } finally {
+      setRegistering(false);
+    }
+  }, [registerNick, language]);
 
   // Load found count on mount and when vocabulary changes
   React.useEffect(() => {
@@ -232,6 +262,9 @@ function App(): React.JSX.Element {
           <TouchableOpacity style={styles.toolbarButton} onPress={() => setRulesVisible(true)} activeOpacity={0.7}>
             <Text style={styles.toolbarButtonText}>?</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.toolbarButton} onPress={() => setHighscoresVisible(true)} activeOpacity={0.7}>
+            <Text style={styles.toolbarButtonText}>🏅</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Rules modal */}
@@ -367,6 +400,65 @@ function App(): React.JSX.Element {
               <TouchableOpacity
                 style={[styles.rulesCloseButton, {marginTop: 12}]}
                 onPress={() => setHistoryVisible(false)}>
+                <Text style={styles.rulesCloseText}>{t.rulesClose}</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Highscores modal */}
+        <Modal
+          visible={highscoresVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setHighscoresVisible(false)}>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setHighscoresVisible(false)}>
+            <View style={styles.rulesModal} onStartShouldSetResponder={() => true}>
+              <Text style={styles.rulesTitle}>
+                {language === 'en' ? 'High Scores' : language === 'sv' ? 'Topplista' : 'Tuloslista'}
+              </Text>
+              {userProfile ? (
+                <View>
+                  <Text style={styles.rulesText}>
+                    {language === 'en' ? `Registered as: ${userProfile.username}` : language === 'sv' ? `Registrerad som: ${userProfile.username}` : `Rekisteröity nimellä: ${userProfile.username}`}
+                  </Text>
+                  <Text style={styles.rulesText}>
+                    {language === 'en' ? 'High scores coming soon!' : language === 'sv' ? 'Topplistan kommer snart!' : 'Tuloslista tulossa pian!'}
+                  </Text>
+                </View>
+              ) : (
+                <View>
+                  <Text style={styles.rulesText}>
+                    {language === 'en' ? 'Register a nickname to participate in high scores.' : language === 'sv' ? 'Registrera ett smeknamn för att delta i topplistan.' : 'Rekisteröi nimimerkki osallistuaksesi tuloslistalle.'}
+                  </Text>
+                  <TextInput
+                    style={styles.registerInput}
+                    placeholder={language === 'en' ? 'Nickname' : language === 'sv' ? 'Smeknamn' : 'Nimimerkki'}
+                    value={registerNick}
+                    onChangeText={setRegisterNick}
+                    maxLength={64}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  {registerError ? (
+                    <Text style={styles.registerError}>{registerError}</Text>
+                  ) : null}
+                  <TouchableOpacity
+                    style={[styles.rulesCloseButton, registering && {opacity: 0.5}]}
+                    onPress={handleRegister}
+                    disabled={registering}>
+                    <Text style={styles.rulesCloseText}>
+                      {registering ? '...' : language === 'en' ? 'Register' : language === 'sv' ? 'Registrera' : 'Rekisteröidy'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <TouchableOpacity
+                style={[styles.rulesCloseButton, {marginTop: 12}]}
+                onPress={() => setHighscoresVisible(false)}>
                 <Text style={styles.rulesCloseText}>{t.rulesClose}</Text>
               </TouchableOpacity>
             </View>
@@ -556,6 +648,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#555',
     fontWeight: '500',
+  },
+  registerInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+  registerError: {
+    color: '#d32f2f',
+    fontSize: 13,
+    marginBottom: 8,
   },
 });
 
