@@ -225,8 +225,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cellSelected: {
-    borderColor: '#4a90d9',
-    backgroundColor: '#e8f0fe',
+    borderColor: '#328ff2',
+    backgroundColor: '#b8d3fd',
   },
   cellText: {
     fontWeight: 'bold',

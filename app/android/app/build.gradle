@@ -109,6 +109,26 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "fivebyfive-${variant.versionName}-${variant.buildType.name}.apk"
+        }
+    }
+}
+
+tasks.whenTaskAdded { task ->
+    if (task.name == 'bundleRelease') {
+        task.doLast {
+            def versionName = android.defaultConfig.versionName
+            def bundleDir = file("${project.buildDir}/outputs/bundle/release")
+            def originalFile = new File(bundleDir, "app-release.aab")
+            def renamedFile = new File(bundleDir, "fivebyfive-${versionName}-release.aab")
+            if (originalFile.exists()) {
+                originalFile.renameTo(renamedFile)
+            }
+        }
+    }
 }
 
 dependencies {

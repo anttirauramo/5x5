@@ -221,13 +221,13 @@ function App(): React.JSX.Element {
         {/* Toolbar */}
         <View style={styles.toolbar}>
           <TouchableOpacity style={styles.toolbarButton} onPress={handleReset} activeOpacity={0.7}>
-            <Text style={styles.toolbarButtonText}>↻</Text>
+            <Text style={styles.toolbarButtonText}>✘</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} onPress={() => { setLastWordRevealed(false); setLastWordVisible(true); }} activeOpacity={0.7}>
             <Text style={styles.toolbarButtonText}>🗓︎</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} onPress={handleOpenHistory} activeOpacity={0.7}>
-            <Text style={styles.toolbarButtonText}>☑</Text>
+            <Text style={styles.toolbarButtonText}>✔</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} onPress={() => setRulesVisible(true)} activeOpacity={0.7}>
             <Text style={styles.toolbarButtonText}>?</Text>
@@ -253,7 +253,7 @@ function App(): React.JSX.Element {
                 <>
                   <Text style={[styles.rulesTitle, {fontSize: 16, marginTop: 14}]}>{t.licensesTitle}</Text>
                   <Text style={styles.rulesText}>
-                    {getLicenseForWordlist(wordlistKey)!.name}: {getLicenseForWordlist(wordlistKey)!.description}
+                    {getLicenseForWordlist(wordlistKey)!.description}
                   </Text>
                   <Text style={[styles.rulesText, {fontStyle: 'italic'}]}>
                     {getLicenseForWordlist(wordlistKey)!.license}
@@ -537,9 +537,10 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   historyMetaDate: {
-    fontSize: 11,
-    color: '#999',
+    fontSize: 12,
+    color: '#4a90d9',
     marginTop: 2,
+    fontWeight: '400',
   },
   licenseLink: {
     fontSize: 13,

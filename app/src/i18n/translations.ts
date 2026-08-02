@@ -133,7 +133,6 @@ export function getTranslations(language: Language): Translations {
 }
 
 export interface LicenseInfo {
-  name: string;
   description: string;
   license: string;
   url?: string;
@@ -145,33 +144,23 @@ export interface LicenseInfo {
 export function getLicenseForWordlist(wordlistKey: string): LicenseInfo | null {
   if (wordlistKey.startsWith('nykysuomi')) {
     return {
-      name: 'Nykysuomen sanalista',
-      description: 'Kotimaisten kielten keskuksen Nykysuomen sanalista, Kielitoimiston sanakirjan hakusanoihin perustuva sanalista.',
+      description: 'Kotimaisten kielten keskuksen julkaisema Kielitoimiston sanakirjan hakusanoihin perustuva sanalista.',
       license: 'CC BY 4.0',
       url: 'https://kaino.kotus.fi/sanat/nykysuomi/',
     };
   }
-  if (wordlistKey.startsWith('joukahainen')) {
-    return {
-      name: 'Joukahainen',
-      description: 'Joukahainen on oikolukuohjelma Voikon sanasto.',
-      license: 'GPL',
-      url: 'https://joukahainen.puimula.org/',
-    };
-  }
   if (wordlistKey.startsWith('svenska') || wordlistKey.startsWith('sv_')) {
     return {
-      name: 'SAOL – Svenska Akademiens ordlista',
-      description: 'Ruotsin Akatemian julkaisema sanasto.',
-      license: 'Vapaasti käytettävissä',
+      description: 'SAOL - Svenska Akademiens ordlista',
+      license: 'Freely available',
       url: 'https://www.gu.se/svenska-spraket/saol-svenska-akademiens-ordlista',
     };
   }
   if (wordlistKey.startsWith('eng')) {
     return {
-      name: 'English word list',
-      description: 'Public domain English word list.',
-      license: 'Public domain',
+      description: 'English word list published in english-words project.',
+      license: 'Unlicense',
+      url: 'https://github.com/dwyl/english-words'
     };
   }
   return null;
