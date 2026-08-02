@@ -1,4 +1,3 @@
-3326 unique (last_column_word, last_row_word) pairs found, of which 2844 have different words
 AAMU
 AAPA
 AARI
