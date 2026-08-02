@@ -68,27 +68,24 @@ function App(): React.JSX.Element {
   }, [rowStatuses, colStatuses]);
 
   const [showFlowerAnimation, setShowFlowerAnimation] = useState(false);
-  const prevGridCompleted = React.useRef(false);
   const letterChangeRef = React.useRef(false);
 
   // Reset animation on any letter change
   const handleLettersChange = useCallback((newLetters: string[][]) => {
     setLetters(newLetters);
     setShowFlowerAnimation(false);
-    // Mark that a letter change happened, so the next completion is treated as fresh
     letterChangeRef.current = true;
   }, []);
 
-  // Trigger animation only on fresh completion
+  // Trigger animation on completion after a letter change
   React.useEffect(() => {
-    if (gridCompleted && (!prevGridCompleted.current || letterChangeRef.current)) {
+    if (gridCompleted && letterChangeRef.current) {
       letterChangeRef.current = false;
       setShowFlowerAnimation(true);
       saveSolvedGrid(letters, vocabulary.wordlistFile);
     }
-    prevGridCompleted.current = gridCompleted;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gridCompleted]);
+  }, [gridCompleted, letters]);
 
   const [rulesVisible, setRulesVisible] = useState(false);
   const [lastWordVisible, setLastWordVisible] = useState(false);
