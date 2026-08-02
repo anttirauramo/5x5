@@ -2,7 +2,8 @@ import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, useWindowDimensions} from 'react-native';
 import type {CellStatus} from '../../App';
 
-const BAR_WIDTH = 8;
+const BAR_WIDTH = 16;
+const BAR_BORDER_WIDTH = 1.5;
 
 const STATUS_COLORS: Record<CellStatus, string> = {
   white: '#e0e0e0',
@@ -17,31 +18,50 @@ interface Props {
   onCellPress: (row: number, col: number) => void;
   rowStatuses: CellStatus[];
   colStatuses: CellStatus[];
+  typingDirection: 'horizontal' | 'vertical';
+  onRowBarPress: (row: number) => void;
+  onColBarPress: (col: number) => void;
 }
 
-export default function WordGrid({gridSize, letters, selectedCell, onCellPress, rowStatuses, colStatuses}: Props) {
+export default function WordGrid({gridSize, letters, selectedCell, onCellPress, rowStatuses, colStatuses, typingDirection, onRowBarPress, onColBarPress}: Props) {
   const {width: screenWidth} = useWindowDimensions();
   const gridPadding = 20;
   const cellGap = 4;
-  // Account for the two side bars + gaps between bars and grid
   const sideSpace = (BAR_WIDTH + cellGap) * 2;
   const availableWidth = screenWidth - gridPadding * 2 - sideSpace;
   const cellSize = Math.floor((availableWidth - cellGap * (gridSize - 1)) / gridSize);
-  const gridWidth = cellSize * gridSize + cellGap * (gridSize - 1);
+
+  const activeRow = selectedCell?.row ?? -1;
+  const activeCol = selectedCell?.col ?? -1;
+
+  const getColBarBorderColor = (col: number) =>
+    typingDirection === 'vertical' && col === activeCol ? '#4a90d9' : 'transparent';
+
+  const getRowBarBorderColor = (row: number) =>
+    typingDirection === 'horizontal' && row === activeRow ? '#4a90d9' : 'transparent';
 
   return (
     <View style={styles.container}>
       {/* Top bar (column statuses) */}
-      <View style={[styles.horizontalBarRow, {marginLeft: BAR_WIDTH - cellGap, gap: cellGap}]}>
+      <View style={[styles.horizontalBarRow, {gap: cellGap}]}>
         {Array.from({length: gridSize}, (_, col) => (
-          <View key={col} style={[styles.horizontalBarWrapper, {width: cellSize}]}>
+          <TouchableOpacity
+            key={col}
+            style={[styles.horizontalBarWrapper, {width: cellSize}]}
+            onPress={() => onColBarPress(col)}
+            activeOpacity={0.7}>
             <View
               style={[
                 styles.horizontalBar,
-                {width: cellSize * 0.9, backgroundColor: STATUS_COLORS[colStatuses[col]]},
-              ]}
-            />
-          </View>
+                {
+                  width: cellSize * 0.9,
+                  backgroundColor: STATUS_COLORS[colStatuses[col]],
+                  borderColor: getColBarBorderColor(col),
+                },
+              ]}>
+              <Text style={styles.barArrow}>▼</Text>
+            </View>
+          </TouchableOpacity>
         ))}
       </View>
 
@@ -50,14 +70,23 @@ export default function WordGrid({gridSize, letters, selectedCell, onCellPress, 
         {/* Left bars (row statuses) */}
         <View style={styles.verticalBarColumn}>
           {Array.from({length: gridSize}, (_, row) => (
-            <View key={row} style={[styles.verticalBarWrapper, {height: cellSize}]}>
+            <TouchableOpacity
+              key={row}
+              style={[styles.verticalBarWrapper, {height: cellSize}]}
+              onPress={() => onRowBarPress(row)}
+              activeOpacity={0.7}>
               <View
                 style={[
                   styles.verticalBar,
-                  {height: cellSize * 0.9, backgroundColor: STATUS_COLORS[rowStatuses[row]]},
-                ]}
-              />
-            </View>
+                  {
+                    height: cellSize * 0.9,
+                    backgroundColor: STATUS_COLORS[rowStatuses[row]],
+                    borderColor: getRowBarBorderColor(row),
+                  },
+                ]}>
+                <Text style={styles.barArrow}>▶</Text>
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -95,29 +124,43 @@ export default function WordGrid({gridSize, letters, selectedCell, onCellPress, 
         {/* Right bars (row statuses) */}
         <View style={styles.verticalBarColumn}>
           {Array.from({length: gridSize}, (_, row) => (
-            <View key={row} style={[styles.verticalBarWrapper, {height: cellSize}]}>
+            <TouchableOpacity
+              key={row}
+              style={[styles.verticalBarWrapper, {height: cellSize}]}
+              onPress={() => onRowBarPress(row)}
+              activeOpacity={0.7}>
               <View
                 style={[
                   styles.verticalBar,
-                  {height: cellSize * 0.9, backgroundColor: STATUS_COLORS[rowStatuses[row]]},
-                ]}
-              />
-            </View>
+                  {
+                    height: cellSize * 0.9,
+                    backgroundColor: STATUS_COLORS[rowStatuses[row]],
+                    borderColor: getRowBarBorderColor(row),
+                  },
+                ]}/>
+            </TouchableOpacity>
           ))}
         </View>
       </View>
 
       {/* Bottom bar (column statuses) */}
-      <View style={[styles.horizontalBarRow, {marginLeft: BAR_WIDTH - cellGap, gap: cellGap}]}>
+      <View style={[styles.horizontalBarRow, {gap: cellGap}]}>
         {Array.from({length: gridSize}, (_, col) => (
-          <View key={col} style={[styles.horizontalBarWrapper, {width: cellSize}]}>
+          <TouchableOpacity
+            key={col}
+            style={[styles.horizontalBarWrapper, {width: cellSize}]}
+            onPress={() => onColBarPress(col)}
+            activeOpacity={0.7}>
             <View
               style={[
                 styles.horizontalBar,
-                {width: cellSize * 0.9, backgroundColor: STATUS_COLORS[colStatuses[col]]},
-              ]}
-            />
-          </View>
+                {
+                  width: cellSize * 0.9,
+                  backgroundColor: STATUS_COLORS[colStatuses[col]],
+                  borderColor: getColBarBorderColor(col),
+                },
+              ]}/>
+          </TouchableOpacity>
         ))}
       </View>
     </View>
@@ -139,7 +182,10 @@ const styles = StyleSheet.create({
   },
   horizontalBar: {
     height: BAR_WIDTH,
-    borderRadius: 2,
+    borderRadius: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: BAR_BORDER_WIDTH,
   },
   middleSection: {
     flexDirection: 'row',
@@ -155,7 +201,14 @@ const styles = StyleSheet.create({
   },
   verticalBar: {
     width: BAR_WIDTH,
-    borderRadius: 2,
+    borderRadius: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: BAR_BORDER_WIDTH,
+  },
+  barArrow: {
+    fontSize: 9,
+    color: '#4a90d9',
   },
   grid: {
     gap: 4,

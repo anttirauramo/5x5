@@ -24,6 +24,7 @@ function App(): React.JSX.Element {
   const [vocabulary, setVocabulary] = useState<VocabularyOption>(DEFAULT_VOCABULARY);
   const [letters, setLetters] = useState<string[][]>(createEmptyGrid(DEFAULT_VOCABULARY.gridSize));
   const [selectedCell, setSelectedCell] = useState<{row: number; col: number}>({row: 0, col: 0});
+  const [typingDirection, setTypingDirection] = useState<'horizontal' | 'vertical'>('horizontal');
   // Load wordlist from bundled module
   const wordlistKey = vocabulary.wordlistFile.replace('.txt', '');
   const language = getLanguageForWordlist(wordlistKey);
@@ -144,18 +145,22 @@ function App(): React.JSX.Element {
       const updated = letters.map(r => [...r]);
       updated[selectedCell.row][selectedCell.col] = letter;
       handleLettersChange(updated);
-      // Advance to next cell
+      // Advance to next cell based on typing direction
       const {row, col} = selectedCell;
       const gridSize = vocabulary.gridSize;
-      const nextCol = col + 1;
-      if (nextCol < gridSize) {
-        setSelectedCell({row, col: nextCol});
-      } else if (row + 1 < gridSize) {
-        setSelectedCell({row: row + 1, col: 0});
+      if (typingDirection === 'horizontal') {
+        const nextCol = col + 1;
+        if (nextCol < gridSize) {
+          setSelectedCell({row, col: nextCol});
+        }
+      } else {
+        const nextRow = row + 1;
+        if (nextRow < gridSize) {
+          setSelectedCell({row: nextRow, col});
+        }
       }
-      // Stay on bottom-right cell after filling it
     },
-    [selectedCell, vocabulary.gridSize, letters, handleLettersChange],
+    [selectedCell, vocabulary.gridSize, letters, handleLettersChange, typingDirection],
   );
 
   const handleBackspace = useCallback(() => {
@@ -165,22 +170,25 @@ function App(): React.JSX.Element {
       updated[row][col] = '';
       handleLettersChange(updated);
     } else {
-      const prevCol = col - 1;
-      if (prevCol >= 0) {
-        setSelectedCell({row, col: prevCol});
-        const updated = letters.map(r => [...r]);
-        updated[row][prevCol] = '';
-        handleLettersChange(updated);
-      } else if (row - 1 >= 0) {
-        const newRow = row - 1;
-        const newCol = vocabulary.gridSize - 1;
-        setSelectedCell({row: newRow, col: newCol});
-        const updated = letters.map(r => [...r]);
-        updated[newRow][newCol] = '';
-        handleLettersChange(updated);
+      if (typingDirection === 'horizontal') {
+        const prevCol = col - 1;
+        if (prevCol >= 0) {
+          setSelectedCell({row, col: prevCol});
+          const updated = letters.map(r => [...r]);
+          updated[row][prevCol] = '';
+          handleLettersChange(updated);
+        }
+      } else {
+        const prevRow = row - 1;
+        if (prevRow >= 0) {
+          setSelectedCell({row: prevRow, col});
+          const updated = letters.map(r => [...r]);
+          updated[prevRow][col] = '';
+          handleLettersChange(updated);
+        }
       }
     }
-  }, [selectedCell, letters, vocabulary.gridSize, handleLettersChange]);
+  }, [selectedCell, letters, vocabulary.gridSize, handleLettersChange, typingDirection]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -381,6 +389,9 @@ function App(): React.JSX.Element {
             onCellPress={handleCellPress}
             rowStatuses={rowStatuses}
             colStatuses={colStatuses}
+            typingDirection={typingDirection}
+            onRowBarPress={(row) => { setTypingDirection('horizontal'); setSelectedCell({row, col: 0}); }}
+            onColBarPress={(col) => { setTypingDirection('vertical'); setSelectedCell({row: 0, col}); }}
           />
         </View>
 
