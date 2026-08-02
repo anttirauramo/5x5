@@ -68,25 +68,27 @@ function App(): React.JSX.Element {
   }, [rowStatuses, colStatuses]);
 
   const [showFlowerAnimation, setShowFlowerAnimation] = useState(false);
-  const [hasTriggeredAnimation, setHasTriggeredAnimation] = useState(false);
+  const prevGridCompleted = React.useRef(false);
+  const letterChangeRef = React.useRef(false);
 
   // Reset animation on any letter change
   const handleLettersChange = useCallback((newLetters: string[][]) => {
     setLetters(newLetters);
-    if (showFlowerAnimation) {
-      setShowFlowerAnimation(false);
-      setHasTriggeredAnimation(false);
-    }
-  }, [showFlowerAnimation]);
+    setShowFlowerAnimation(false);
+    // Mark that a letter change happened, so the next completion is treated as fresh
+    letterChangeRef.current = true;
+  }, []);
 
-  // Trigger animation when grid is freshly completed
+  // Trigger animation only on fresh completion
   React.useEffect(() => {
-    if (gridCompleted && !hasTriggeredAnimation) {
+    if (gridCompleted && (!prevGridCompleted.current || letterChangeRef.current)) {
+      letterChangeRef.current = false;
       setShowFlowerAnimation(true);
-      setHasTriggeredAnimation(true);
       saveSolvedGrid(letters, vocabulary.wordlistFile);
     }
-  }, [gridCompleted, hasTriggeredAnimation, letters, vocabulary.wordlistFile]);
+    prevGridCompleted.current = gridCompleted;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridCompleted]);
 
   const [rulesVisible, setRulesVisible] = useState(false);
   const [lastWordVisible, setLastWordVisible] = useState(false);
@@ -122,7 +124,6 @@ function App(): React.JSX.Element {
               setLetters(createEmptyGrid(vocabulary.gridSize));
               setSelectedCell({row: 0, col: 0});
               setShowFlowerAnimation(false);
-              setHasTriggeredAnimation(false);
             },
           },
         ],
@@ -135,7 +136,6 @@ function App(): React.JSX.Element {
     setLetters(createEmptyGrid(option.gridSize));
     setSelectedCell({row: 0, col: 0});
     setShowFlowerAnimation(false);
-    setHasTriggeredAnimation(false);
   }, []);
 
   const handleCellPress = useCallback((row: number, col: number) => {

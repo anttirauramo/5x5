@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo} from 'react';
-import {StyleSheet, useWindowDimensions} from 'react-native';
+import {StyleSheet, useWindowDimensions, Image} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,12 +7,15 @@ import Animated, {
   Easing,
   interpolate,
   SharedValue,
+  cancelAnimation,
 } from 'react-native-reanimated';
-import SakuraFlower from './SakuraFlower';
 
-const PETAL_COUNT = 210;
+const PETAL_COUNT = 50;
 const ANIMATION_DURATION = 6000;
-const LINGERING_PETALS = 40;
+const LINGERING_PETALS = 10;
+
+// Pre-require the image so it's only loaded once
+const flowerImage = require('../../assets/flower.png');
 
 interface PetalConfig {
   x: number;
@@ -39,12 +42,7 @@ function generatePetals(screenWidth: number, screenHeight: number): PetalConfig[
   return petals;
 }
 
-interface FlowerPetalProps {
-  config: PetalConfig;
-  progress: SharedValue<number>;
-}
-
-function FlowerPetal({config, progress}: FlowerPetalProps) {
+const FlowerPetal = React.memo(function FlowerPetal({config, progress}: {config: PetalConfig; progress: SharedValue<number>}) {
   const animatedStyle = useAnimatedStyle(() => {
     const p = progress.value;
 
@@ -74,20 +72,20 @@ function FlowerPetal({config, progress}: FlowerPetalProps) {
 
   return (
     <Animated.View style={[styles.petal, animatedStyle]}>
-      <SakuraFlower size={config.size} />
+      <Image source={flowerImage} style={{width: config.size, height: config.size}} />
     </Animated.View>
   );
-}
+});
 
 interface Props {
   visible: boolean;
-  onAnimationComplete?: () => void;
 }
 
 export default function FlowerAnimation({visible}: Props) {
   const {width: screenWidth, height: screenHeight} = useWindowDimensions();
   const progress = useSharedValue(0);
 
+  // Petals are generated once and reused across animation runs
   const petals = useMemo(
     () => generatePetals(screenWidth, screenHeight),
     [screenWidth, screenHeight],
@@ -95,12 +93,14 @@ export default function FlowerAnimation({visible}: Props) {
 
   useEffect(() => {
     if (visible) {
+      cancelAnimation(progress);
       progress.value = 0.1;
       progress.value = withTiming(1, {
         duration: ANIMATION_DURATION,
         easing: Easing.out(Easing.cubic),
       });
     } else {
+      cancelAnimation(progress);
       progress.value = 0;
     }
   }, [visible, progress]);
