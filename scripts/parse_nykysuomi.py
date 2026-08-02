@@ -13,7 +13,7 @@ with open(filepath, "r", encoding="utf-8") as f:
     for line in f:
 
         # skip interjections
-        if re.match(r".*\sinterjektio.*", line):
+        if re.match(r".*\tinterjektio\t.*", line):
             continue
 
         word = line.split("\t")[0].strip()
