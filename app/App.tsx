@@ -1,5 +1,5 @@
 import React, {useState, useCallback, useMemo} from 'react';
-import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, FlatList, Linking, TextInput, ScrollView} from 'react-native';
+import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, Linking, TextInput, ScrollView} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import VocabularySelector, {VocabularyOption, VOCABULARIES} from './src/components/VocabularySelector';
 import WordGrid from './src/components/WordGrid';
@@ -413,12 +413,9 @@ function App(): React.JSX.Element {
                   {t.historyEmpty}
                 </Text>
               ) : (
-                <FlatList
-                  data={solvedGrids}
-                  keyExtractor={(item, index) => `${item.solvedAt}-${index}`}
-                  style={styles.historyList}
-                  renderItem={({item}) => (
-                    <View style={styles.historyItem}>
+                <View style={styles.historyList}>
+                  {solvedGrids.map((item, index) => (
+                    <View key={`${item.solvedAt}-${index}`} style={styles.historyItem}>
                       <View style={styles.historyGrid}>
                         {item.grid.map((row, rowIdx) => (
                           <Text key={rowIdx} style={styles.historyGridRow}>
@@ -435,8 +432,8 @@ function App(): React.JSX.Element {
                         </Text>
                       </View>
                     </View>
-                  )}
-                />
+                  ))}
+                </View>
               )}
               <TouchableOpacity
                 style={[styles.rulesCloseButton, {marginTop: 12}]}
