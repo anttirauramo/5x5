@@ -1,5 +1,5 @@
 import React, {useState, useCallback, useMemo} from 'react';
-import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, FlatList, Linking, TextInput} from 'react-native';
+import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, FlatList, Linking, TextInput, ScrollView} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import VocabularySelector, {VocabularyOption, VOCABULARIES} from './src/components/VocabularySelector';
 import WordGrid from './src/components/WordGrid';
@@ -9,7 +9,10 @@ import SOLUTION_COUNTS from './src/generated/solutionCounts';
 import {getWordlist} from './src/utils/wordlists';
 import {getLastWordOfTheDay, getLastWordInfo, hasLastWords} from './src/utils/lastWords';
 import {saveSolvedGrid, loadSolvedGrids, SolvedGrid} from './src/utils/solvedGrids';
-import {getUserProfile, registerUser, UserProfile} from './src/utils/userProfile';
+import {getUserProfile, registerUser, UserProfile, checkUserExists, clearUserProfile} from './src/utils/userProfile';
+import {syncCompletion, syncAllCompletions} from './src/utils/syncCompletions';
+import {reportInitiation} from './src/utils/initiation';
+import {fetchHighscores, HighscoreEntry} from './src/utils/highscores';
 import {BannerAd, BannerAdSize} from 'react-native-google-mobile-ads';
 import {getLanguageForWordlist, getTranslations, getLicenseForWordlist} from './src/i18n/translations';
 
@@ -85,6 +88,8 @@ function App(): React.JSX.Element {
       letterChangeRef.current = false;
       setShowFlowerAnimation(true);
       saveSolvedGrid(letters, vocabulary.wordlistFile);
+      // Sync to backend if registered
+      syncCompletion(letters, vocabulary.wordlistFile).catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridCompleted, letters]);
@@ -96,20 +101,56 @@ function App(): React.JSX.Element {
   const [solvedGrids, setSolvedGrids] = useState<SolvedGrid[]>([]);
   const [foundCount, setFoundCount] = useState(0);
   const [highscoresVisible, setHighscoresVisible] = useState(false);
+  const [highscores, setHighscores] = useState<HighscoreEntry[]>([]);
+  const [highscoresLoading, setHighscoresLoading] = useState(false);
+  const [userNotFound, setUserNotFound] = useState(false);
+  const [userStatusError, setUserStatusError] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [registerNick, setRegisterNick] = useState('');
   const [registerError, setRegisterError] = useState('');
   const [registering, setRegistering] = useState(false);
 
+  const handleOpenHighscores = useCallback(() => {
+    setHighscoresVisible(true);
+    setHighscoresLoading(true);
+    setUserNotFound(false);
+    setUserStatusError('');
+
+    const loadData = async () => {
+      // Check user existence if registered
+      if (userProfile) {
+        const exists = await checkUserExists();
+        if (exists === false) {
+          setUserNotFound(true);
+        } else if (exists === null) {
+          setUserStatusError(t.highscoresConnectionError);
+        }
+      }
+      // Fetch highscores
+      const scores = await fetchHighscores(vocabulary.wordlistFile).catch(() => []);
+      setHighscores(scores);
+      setHighscoresLoading(false);
+    };
+    loadData();
+  }, [vocabulary.wordlistFile, userProfile, t]);
+
+  const handleClearUser = useCallback(async () => {
+    await clearUserProfile();
+    setUserProfile(null);
+    setUserNotFound(false);
+  }, []);
+
   // Load user profile on mount
   React.useEffect(() => {
     getUserProfile().then(setUserProfile);
+    reportInitiation(vocabulary.wordlistFile);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRegister = useCallback(async () => {
     const nick = registerNick.trim();
     if (!nick) {
-      setRegisterError(language === 'en' ? 'Enter a nickname' : language === 'sv' ? 'Ange ett smeknamn' : 'Syötä nimimerkki');
+      setRegisterError(t.registerNickRequired);
       return;
     }
     setRegistering(true);
@@ -118,12 +159,14 @@ function App(): React.JSX.Element {
       const profile = await registerUser(nick);
       setUserProfile(profile);
       setRegisterNick('');
+      // Sync all locally stored completions to backend
+      syncAllCompletions().catch(() => {});
     } catch (e: any) {
       setRegisterError(e.message || 'Registration failed');
     } finally {
       setRegistering(false);
     }
-  }, [registerNick, language]);
+  }, [registerNick, t]);
 
   // Load found count on mount and when vocabulary changes
   React.useEffect(() => {
@@ -152,6 +195,7 @@ function App(): React.JSX.Element {
               setLetters(createEmptyGrid(vocabulary.gridSize));
               setSelectedCell({row: 0, col: 0});
               setShowFlowerAnimation(false);
+              reportInitiation(vocabulary.wordlistFile);
             },
           },
         ],
@@ -164,6 +208,7 @@ function App(): React.JSX.Element {
     setLetters(createEmptyGrid(option.gridSize));
     setSelectedCell({row: 0, col: 0});
     setShowFlowerAnimation(false);
+    reportInitiation(option.wordlistFile);
   }, []);
 
   const handleCellPress = useCallback((row: number, col: number) => {
@@ -259,11 +304,11 @@ function App(): React.JSX.Element {
           <TouchableOpacity style={styles.toolbarButton} onPress={handleOpenHistory} activeOpacity={0.7}>
             <Text style={styles.toolbarButtonText}>✔</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.toolbarButton} onPress={handleOpenHighscores} activeOpacity={0.7}>
+            <Text style={styles.toolbarButtonText}>🏅</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} onPress={() => setRulesVisible(true)} activeOpacity={0.7}>
             <Text style={styles.toolbarButtonText}>?</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={() => setHighscoresVisible(true)} activeOpacity={0.7}>
-            <Text style={styles.toolbarButtonText}>🏅</Text>
           </TouchableOpacity>
         </View>
 
@@ -273,10 +318,8 @@ function App(): React.JSX.Element {
           transparent
           animationType="fade"
           onRequestClose={() => setRulesVisible(false)}>
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setRulesVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
             <View style={styles.rulesModal}>
               <Text style={styles.rulesTitle}>{t.rulesTitle}</Text>
               <Text style={styles.rulesText}>{t.rulesText1}</Text>
@@ -304,7 +347,8 @@ function App(): React.JSX.Element {
                 <Text style={styles.rulesCloseText}>{t.rulesClose}</Text>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+            </ScrollView>
+          </View>
         </Modal>
 
         {/* Päivän viimeinen sana modal */}
@@ -313,10 +357,8 @@ function App(): React.JSX.Element {
           transparent
           animationType="fade"
           onRequestClose={() => setLastWordVisible(false)}>
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setLastWordVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
             <View style={styles.rulesModal}>
               <Text style={styles.rulesTitle}>{t.lastWordTitle}</Text>
               {lastWordAvailable ? (
@@ -352,7 +394,8 @@ function App(): React.JSX.Element {
                 <Text style={styles.rulesCloseText}>{t.lastWordClose}</Text>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+            </ScrollView>
+          </View>
         </Modal>
 
         {/* History modal */}
@@ -361,15 +404,13 @@ function App(): React.JSX.Element {
           transparent
           animationType="fade"
           onRequestClose={() => setHistoryVisible(false)}>
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setHistoryVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
             <View style={[styles.rulesModal, styles.historyModal]}>
-              <Text style={styles.rulesTitle}>{t.rulesClose === 'Close' ? 'Solutions Found' : t.rulesClose === 'Stäng' ? 'Hittade lösningar' : 'Löydetyt ratkaisut'}</Text>
+              <Text style={styles.rulesTitle}>{t.historyTitle}</Text>
               {solvedGrids.length === 0 ? (
                 <Text style={styles.rulesText}>
-                  {language === 'en' ? 'No solutions found yet.' : language === 'sv' ? 'Inga lösningar hittade ännu.' : 'Ei löydettyjä ratkaisuja.'}
+                  {t.historyEmpty}
                 </Text>
               ) : (
                 <FlatList
@@ -403,7 +444,8 @@ function App(): React.JSX.Element {
                 <Text style={styles.rulesCloseText}>{t.rulesClose}</Text>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+            </ScrollView>
+          </View>
         </Modal>
 
         {/* Highscores modal */}
@@ -412,31 +454,75 @@ function App(): React.JSX.Element {
           transparent
           animationType="fade"
           onRequestClose={() => setHighscoresVisible(false)}>
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setHighscoresVisible(false)}>
-            <View style={styles.rulesModal} onStartShouldSetResponder={() => true}>
+          <View style={styles.modalOverlay}>
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <View style={styles.rulesModal}>
               <Text style={styles.rulesTitle}>
-                {language === 'en' ? 'High Scores' : language === 'sv' ? 'Topplista' : 'Tuloslista'}
+                {t.highscoresTitle}
               </Text>
               {userProfile ? (
                 <View>
-                  <Text style={styles.rulesText}>
-                    {language === 'en' ? `Registered as: ${userProfile.username}` : language === 'sv' ? `Registrerad som: ${userProfile.username}` : `Rekisteröity nimellä: ${userProfile.username}`}
-                  </Text>
-                  <Text style={styles.rulesText}>
-                    {language === 'en' ? 'High scores coming soon!' : language === 'sv' ? 'Topplistan kommer snart!' : 'Tuloslista tulossa pian!'}
-                  </Text>
+                  {userNotFound && (
+                    <View>
+                      <Text style={styles.registerError}>
+                        {t.highscoresUserNotFound}
+                      </Text>
+                      <TouchableOpacity style={styles.rulesCloseButton} onPress={handleClearUser}>
+                        <Text style={styles.rulesCloseText}>
+                          {t.highscoresClearRegistration}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {userStatusError !== '' && (
+                    <Text style={styles.registerError}>{userStatusError}</Text>
+                  )}
+                  {highscoresLoading ? (
+                    <Text style={styles.rulesText}>...</Text>
+                  ) : highscores.length === 0 ? (
+                    <Text style={styles.rulesText}>
+                      {t.highscoresNoScores}
+                    </Text>
+                  ) : (
+                    <View>
+                      {highscores.slice(0, 10).map((entry, index) => (
+                        <View key={entry.user_id} style={styles.highscoreRow}>
+                          <Text style={[styles.highscoreRank, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                            {index + 1}.
+                          </Text>
+                          <Text style={[styles.highscoreName, entry.user_id === userProfile.id && styles.highscoreCurrentUser]} numberOfLines={1}>
+                            {entry.username} <Text style={styles.highscoreUserId}>({entry.user_id})</Text>
+                          </Text>
+                          <Text style={[styles.highscoreScore, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                            {entry.score}
+                          </Text>
+                        </View>
+                      ))}
+                      {!highscores.some(e => e.user_id === userProfile.id) && foundCount > 0 && (
+                        <View>
+                          <Text style={styles.highscoreDots}>···</Text>
+                          <View style={styles.highscoreRow}>
+                            <Text style={[styles.highscoreRank, styles.highscoreCurrentUser]}>—</Text>
+                            <Text style={[styles.highscoreName, styles.highscoreCurrentUser]} numberOfLines={1}>
+                              {userProfile.username}
+                            </Text>
+                            <Text style={[styles.highscoreScore, styles.highscoreCurrentUser]}>
+                              {foundCount}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
               ) : (
                 <View>
                   <Text style={styles.rulesText}>
-                    {language === 'en' ? 'Register a nickname to participate in high scores.' : language === 'sv' ? 'Registrera ett smeknamn för att delta i topplistan.' : 'Rekisteröi nimimerkki osallistuaksesi tuloslistalle.'}
+                    {t.highscoresRegisterPrompt}
                   </Text>
                   <TextInput
                     style={styles.registerInput}
-                    placeholder={language === 'en' ? 'Nickname' : language === 'sv' ? 'Smeknamn' : 'Nimimerkki'}
+                    placeholder={t.highscoresNicknamePlaceholder}
                     value={registerNick}
                     onChangeText={setRegisterNick}
                     maxLength={64}
@@ -451,7 +537,7 @@ function App(): React.JSX.Element {
                     onPress={handleRegister}
                     disabled={registering}>
                     <Text style={styles.rulesCloseText}>
-                      {registering ? '...' : language === 'en' ? 'Register' : language === 'sv' ? 'Registrera' : 'Rekisteröidy'}
+                      {registering ? '...' : t.highscoresRegisterButton}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -462,7 +548,8 @@ function App(): React.JSX.Element {
                 <Text style={styles.rulesCloseText}>{t.rulesClose}</Text>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+            </ScrollView>
+          </View>
         </Modal>
 
         {/* Solution counter */}
@@ -549,12 +636,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
   rulesModal: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 24,
     marginHorizontal: 30,
-    maxWidth: 340,
+    maxWidth: '80%',
+    minWidth: 280,
   },
   rulesTitle: {
     fontSize: 20,
@@ -569,7 +663,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     lineHeight: 22,
   },
-  rulesCloseButton: {
+ rulesCloseButton: {
     marginTop: 12,
     backgroundColor: '#95b5f5',
     paddingVertical: 10,
@@ -663,6 +757,44 @@ const styles = StyleSheet.create({
     color: '#d32f2f',
     fontSize: 13,
     marginBottom: 8,
+  },
+  highscoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  highscoreRank: {
+    width: 28,
+    fontSize: 14,
+    color: '#555',
+  },
+  highscoreName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  highscoreUserId: {
+    flex: 1,
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '200'
+  },
+  highscoreScore: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    minWidth: 30,
+    textAlign: 'right',
+  },
+  highscoreCurrentUser: {
+    color: '#4a90d9',
+    fontWeight: '700',
+  },
+  highscoreDots: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#999',
+    paddingVertical: 4,
   },
 });
 

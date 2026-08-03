@@ -56,3 +56,31 @@ export async function isRegistered(): Promise<boolean> {
   const profile = await getUserProfile();
   return profile !== null;
 }
+
+/**
+ * Check if the locally stored user exists in the backend.
+ * Returns true if user exists, false if not, null if check failed.
+ */
+export async function checkUserExists(): Promise<boolean | null> {
+  const profile = await getUserProfile();
+  if (!profile) {return null;}
+
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/user_status?user_id=${profile.id}`,
+      {headers: {'X-API-KEY': API_KEY}},
+    );
+    if (!response.ok) {return null;}
+    const data = await response.json();
+    return data.exists === true;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Clear the locally stored user profile.
+ */
+export async function clearUserProfile(): Promise<void> {
+  await AsyncStorage.removeItem(USER_STORAGE_KEY);
+}

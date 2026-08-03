@@ -30,6 +30,23 @@ export interface Translations {
 
   // Licenses
   licensesTitle: string;
+
+  // History dialog
+  historyTitle: string;
+  historyEmpty: string;
+
+  // Highscores dialog
+  highscoresTitle: string;
+  highscoresNoScores: string;
+  highscoresRegisterPrompt: string;
+  highscoresNicknamePlaceholder: string;
+  highscoresRegisterButton: string;
+  highscoresUserNotFound: string;
+  highscoresClearRegistration: string;
+  highscoresConnectionError: string;
+
+  // Registration
+  registerNickRequired: string;
 }
 
 const fi: Translations = {
@@ -57,6 +74,20 @@ const fi: Translations = {
   lastWordClose: 'Sulje',
 
   licensesTitle: 'Lisenssit',
+
+  historyTitle: 'Löydetyt ratkaisut',
+  historyEmpty: 'Ei löydettyjä ratkaisuja.',
+
+  highscoresTitle: 'Ratkaisijat',
+  highscoresNoScores: 'Ei tuloksia vielä.',
+  highscoresRegisterPrompt: 'Rekisteröi nimimerkki osallistuaksesi tuloslistalle.',
+  highscoresNicknamePlaceholder: 'Nimimerkki',
+  highscoresRegisterButton: 'Rekisteröidy',
+  highscoresUserNotFound: 'Käyttäjää ei löydy palvelimelta. Sinun on ehkä rekisteröidyttävä uudelleen.',
+  highscoresClearRegistration: 'Poista rekisteröinti',
+  highscoresConnectionError: 'Yhteyttä palvelimeen ei saatu.',
+
+  registerNickRequired: 'Syötä nimimerkki',
 };
 
 const sv: Translations = {
@@ -84,6 +115,20 @@ const sv: Translations = {
   lastWordClose: 'Stäng',
 
   licensesTitle: 'Licenser',
+
+  historyTitle: 'Hittade lösningar',
+  historyEmpty: 'Inga lösningar hittade ännu.',
+
+  highscoresTitle: 'Topplista',
+  highscoresNoScores: 'Inga poäng ännu.',
+  highscoresRegisterPrompt: 'Registrera ett smeknamn för att delta i topplistan.',
+  highscoresNicknamePlaceholder: 'Smeknamn',
+  highscoresRegisterButton: 'Registrera',
+  highscoresUserNotFound: 'Användaren hittades inte på servern. Du kan behöva registrera dig igen.',
+  highscoresClearRegistration: 'Rensa registrering',
+  highscoresConnectionError: 'Kunde inte ansluta till servern.',
+
+  registerNickRequired: 'Ange ett smeknamn',
 };
 
 const en: Translations = {
@@ -111,6 +156,20 @@ const en: Translations = {
   lastWordClose: 'Close',
 
   licensesTitle: 'Licenses',
+
+  historyTitle: 'Solutions Found',
+  historyEmpty: 'No solutions found yet.',
+
+  highscoresTitle: 'High Scores',
+  highscoresNoScores: 'No scores yet.',
+  highscoresRegisterPrompt: 'Register a nickname to participate in high scores.',
+  highscoresNicknamePlaceholder: 'Nickname',
+  highscoresRegisterButton: 'Register',
+  highscoresUserNotFound: 'User not found in the server. You may need to re-register.',
+  highscoresClearRegistration: 'Clear registration',
+  highscoresConnectionError: 'Could not connect to server.',
+
+  registerNickRequired: 'Enter a nickname',
 };
 
 const TRANSLATIONS: Record<Language, Translations> = {fi, sv, en};

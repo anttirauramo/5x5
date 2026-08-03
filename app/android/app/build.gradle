@@ -82,8 +82,8 @@ android {
         applicationId "com.rauramo.fivebyfive"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "0.3"
+        versionCode 4
+        versionName "0.4"
     }
     signingConfigs {
         debug {
@@ -93,10 +93,15 @@ android {
             keyPassword 'android'
         }
         release {
+            def keystorePropertiesFile = rootProject.file("keystore.properties")
+            def keystoreProperties = new Properties()
+            if (keystorePropertiesFile.exists()) {
+                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+            }
             storeFile file('release.keystore')
-            storePassword 'fivebyfive2026'
-            keyAlias 'fivebyfive'
-            keyPassword 'fivebyfive2026'
+            storePassword keystoreProperties['RELEASE_STORE_PASSWORD'] ?: ''
+            keyAlias keystoreProperties['RELEASE_KEY_ALIAS'] ?: ''
+            keyPassword keystoreProperties['RELEASE_KEY_PASSWORD'] ?: ''
         }
     }
     buildTypes {

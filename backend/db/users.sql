@@ -1,5 +1,5 @@
 create table users (
-    id serial primary key,
+    id bigint unsigned auto_increment primary key,
     username varchar(64) not null,
     created_at timestamp default current_timestamp
-);
+) ENGINE=InnoDB;

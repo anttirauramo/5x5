@@ -79,3 +79,4 @@ assets/wordlists/
 android/app/src/main/assets/wordlists/
 android/app/release.keystore
 .env
+android/keystore.properties
