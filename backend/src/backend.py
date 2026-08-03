@@ -218,6 +218,51 @@ def handle_highscores(environ):
         return '500 Internal Server Error', json.dumps({'status': 'error', 'message': str(e)})
 
 
+def handle_hall_of_fame(environ):
+    if not check_api_key(environ):
+        return '401 Unauthorized', json.dumps({'error': 'invalid api key'})
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Get solution counts per user per wordlist
+        cursor.execute('''
+            SELECT u.id as user_id, u.username, c.wordlist, COUNT(c.id) as count
+            FROM users u
+            JOIN completions c ON c.user_id = u.id
+            GROUP BY u.id, u.username, c.wordlist
+            ORDER BY u.id, c.wordlist
+        ''')
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        # Group by user
+        users = {}
+        for row in rows:
+            uid = row['user_id']
+            if uid not in users:
+                users[uid] = {'user_id': uid, 'username': row['username'], 'wordlists': []}
+            users[uid]['wordlists'].append({'wordlist': row['wordlist'], 'count': row['count']})
+
+        # Calculate totals and sort by total desc
+        result = []
+        for user in users.values():
+            total = sum(w['count'] for w in user['wordlists'])
+            result.append({
+                'user_id': user['user_id'],
+                'username': user['username'],
+                'wordlists': user['wordlists'],
+                'total': total,
+            })
+        result.sort(key=lambda x: x['total'], reverse=True)
+
+        return '200 OK', json.dumps({'hall_of_fame': result})
+    except Exception as e:
+        return '500 Internal Server Error', json.dumps({'status': 'error', 'message': str(e)})
+
+
 def route_request(environ):
     path = environ.get('PATH_INFO', '/')
     method = environ.get('REQUEST_METHOD', 'GET')
@@ -228,6 +273,8 @@ def route_request(environ):
         return handle_user_status(environ)
     if method == 'GET' and path == '/v0.4/highscores':
         return handle_highscores(environ)
+    if method == 'GET' and path == '/v0.4/hall_of_fame':
+        return handle_hall_of_fame(environ)
     if method == 'POST' and path == '/v0.4/register':
         return handle_register(environ)
     if method == 'POST' and path == '/v0.4/completions':

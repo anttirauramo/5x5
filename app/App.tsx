@@ -12,7 +12,7 @@ import {saveSolvedGrid, loadSolvedGrids, SolvedGrid} from './src/utils/solvedGri
 import {getUserProfile, registerUser, UserProfile, checkUserExists, clearUserProfile} from './src/utils/userProfile';
 import {syncCompletion, syncAllCompletions} from './src/utils/syncCompletions';
 import {reportInitiation} from './src/utils/initiation';
-import {fetchHighscores, HighscoreEntry} from './src/utils/highscores';
+import {fetchHighscores, HighscoreEntry, fetchHallOfFame, HallOfFameEntry} from './src/utils/highscores';
 import {BannerAd, BannerAdSize} from 'react-native-google-mobile-ads';
 import {getLanguageForWordlist, getTranslations, getLicenseForWordlist} from './src/i18n/translations';
 
@@ -103,6 +103,8 @@ function App(): React.JSX.Element {
   const [highscoresVisible, setHighscoresVisible] = useState(false);
   const [highscores, setHighscores] = useState<HighscoreEntry[]>([]);
   const [highscoresLoading, setHighscoresLoading] = useState(false);
+  const [highscoreTab, setHighscoreTab] = useState<'wordlist' | 'hallOfFame'>('wordlist');
+  const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>([]);
   const [userNotFound, setUserNotFound] = useState(false);
   const [userStatusError, setUserStatusError] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -126,9 +128,13 @@ function App(): React.JSX.Element {
           setUserStatusError(t.highscoresConnectionError);
         }
       }
-      // Fetch highscores
-      const scores = await fetchHighscores(vocabulary.wordlistFile).catch(() => []);
+      // Fetch highscores and hall of fame
+      const [scores, fame] = await Promise.all([
+        fetchHighscores(vocabulary.wordlistFile).catch(() => []),
+        fetchHallOfFame().catch(() => []),
+      ]);
       setHighscores(scores);
+      setHallOfFame(fame);
       setHighscoresLoading(false);
     };
     loadData();
@@ -457,6 +463,25 @@ function App(): React.JSX.Element {
               <Text style={styles.rulesTitle}>
                 {t.highscoresTitle}
               </Text>
+
+              {/* Tabs */}
+              <View style={styles.tabBar}>
+                <TouchableOpacity
+                  style={[styles.tab, highscoreTab === 'wordlist' && styles.tabActive]}
+                  onPress={() => setHighscoreTab('wordlist')}>
+                  <Text style={[styles.tabText, highscoreTab === 'wordlist' && styles.tabTextActive]}>
+                    {vocabulary.label}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, highscoreTab === 'hallOfFame' && styles.tabActive]}
+                  onPress={() => setHighscoreTab('hallOfFame')}>
+                  <Text style={[styles.tabText, highscoreTab === 'hallOfFame' && styles.tabTextActive]}>
+                    Hall of Fame
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               {userProfile ? (
                 <View>
                   {userNotFound && (
@@ -476,40 +501,78 @@ function App(): React.JSX.Element {
                   )}
                   {highscoresLoading ? (
                     <Text style={styles.rulesText}>...</Text>
-                  ) : highscores.length === 0 ? (
-                    <Text style={styles.rulesText}>
-                      {t.highscoresNoScores}
-                    </Text>
-                  ) : (
-                    <View>
-                      {highscores.slice(0, 10).map((entry, index) => (
-                        <View key={entry.user_id} style={styles.highscoreRow}>
-                          <Text style={[styles.highscoreRank, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
-                            {index + 1}.
-                          </Text>
-                          <Text style={[styles.highscoreName, entry.user_id === userProfile.id && styles.highscoreCurrentUser]} numberOfLines={1}>
-                            {entry.username} <Text style={styles.highscoreUserId}>({entry.user_id})</Text>
-                          </Text>
-                          <Text style={[styles.highscoreScore, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
-                            {entry.score}
-                          </Text>
-                        </View>
-                      ))}
-                      {!highscores.some(e => e.user_id === userProfile.id) && foundCount > 0 && (
-                        <View>
-                          <Text style={styles.highscoreDots}>···</Text>
-                          <View style={styles.highscoreRow}>
-                            <Text style={[styles.highscoreRank, styles.highscoreCurrentUser]}>—</Text>
-                            <Text style={[styles.highscoreName, styles.highscoreCurrentUser]} numberOfLines={1}>
-                              {userProfile.username}
+                  ) : highscoreTab === 'wordlist' ? (
+                    /* Wordlist tab */
+                    highscores.length === 0 ? (
+                      <Text style={styles.rulesText}>{t.highscoresNoScores}</Text>
+                    ) : (
+                      <View>
+                        {highscores.slice(0, 10).map((entry, index) => (
+                          <View key={entry.user_id} style={styles.highscoreRow}>
+                            <Text style={[styles.highscoreRank, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                              {index + 1}.
                             </Text>
-                            <Text style={[styles.highscoreScore, styles.highscoreCurrentUser]}>
-                              {foundCount}
+                            <Text style={[styles.highscoreName, entry.user_id === userProfile.id && styles.highscoreCurrentUser]} numberOfLines={1}>
+                              {entry.username} <Text style={styles.highscoreUserId}>({entry.user_id})</Text>
+                            </Text>
+                            <Text style={[styles.highscoreScore, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                              {entry.score}
                             </Text>
                           </View>
-                        </View>
-                      )}
-                    </View>
+                        ))}
+                        {!highscores.some(e => e.user_id === userProfile.id) && foundCount > 0 && (
+                          <View>
+                            <Text style={styles.highscoreDots}>···</Text>
+                            <View style={styles.highscoreRow}>
+                              <Text style={[styles.highscoreRank, styles.highscoreCurrentUser]}>—</Text>
+                              <Text style={[styles.highscoreName, styles.highscoreCurrentUser]} numberOfLines={1}>
+                                {userProfile.username}
+                              </Text>
+                              <Text style={[styles.highscoreScore, styles.highscoreCurrentUser]}>
+                                {foundCount}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    )
+                  ) : (
+                    /* Hall of Fame tab */
+                    hallOfFame.length === 0 ? (
+                      <Text style={styles.rulesText}>{t.highscoresNoScores}</Text>
+                    ) : (
+                      <View>
+                        {hallOfFame.slice(0, 10).map((entry, index) => (
+                          <View key={entry.user_id} style={styles.highscoreRow}>
+                            <Text style={[styles.highscoreRank, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                              {index + 1}.
+                            </Text>
+                            <Text style={[styles.highscoreName, entry.user_id === userProfile.id && styles.highscoreCurrentUser]} numberOfLines={1}>
+                              {entry.username}
+                            </Text>
+                            <Text style={[styles.highscoreScore, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                              {entry.wordlists.map(w => w.count).join(' + ')} = {entry.total}
+                            </Text>
+                          </View>
+                        ))}
+                        {!hallOfFame.slice(0, 10).some(e => e.user_id === userProfile.id) && (
+                          <View>
+                            <Text style={styles.highscoreDots}>···</Text>
+                            {hallOfFame.filter(e => e.user_id === userProfile.id).map(entry => (
+                              <View key={entry.user_id} style={styles.highscoreRow}>
+                                <Text style={[styles.highscoreRank, styles.highscoreCurrentUser]}>—</Text>
+                                <Text style={[styles.highscoreName, styles.highscoreCurrentUser]} numberOfLines={1}>
+                                  {entry.username}
+                                </Text>
+                                <Text style={[styles.highscoreScore, styles.highscoreCurrentUser]}>
+                                  {entry.wordlists.map(w => w.count).join(' + ')} = {entry.total}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )
                   )}
                 </View>
               ) : (
@@ -792,6 +855,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
     paddingVertical: 4,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  tabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#95b5f5',
+  },
+  tabText: {
+    fontSize: 13,
+    color: '#888',
+  },
+  tabTextActive: {
+    color: '#333',
+    fontWeight: '600',
   },
 });
 
