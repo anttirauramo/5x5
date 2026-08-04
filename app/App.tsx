@@ -1,5 +1,5 @@
 import React, {useState, useCallback, useMemo} from 'react';
-import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, Linking, TextInput, ScrollView} from 'react-native';
+import {View, Text, StyleSheet, StatusBar, ImageBackground, TouchableOpacity, Modal, Alert, Linking, TextInput, ScrollView, Animated as RNAnimated} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import VocabularySelector, {VocabularyOption, VOCABULARIES} from './src/components/VocabularySelector';
 import WordGrid from './src/components/WordGrid';
@@ -79,15 +79,42 @@ function App(): React.JSX.Element {
   const handleLettersChange = useCallback((newLetters: string[][]) => {
     setLetters(newLetters);
     setShowFlowerAnimation(false);
+    setThrobCounter(false);
     letterChangeRef.current = true;
   }, []);
+
+  const [throbCounter, setThrobCounter] = useState(false);
+  const pulseAnim = React.useRef(new RNAnimated.Value(1)).current;
+
+  React.useEffect(() => {
+    if (throbCounter) {
+      RNAnimated.loop(
+        RNAnimated.sequence([
+          RNAnimated.timing(pulseAnim, {toValue: 1.3, duration: 400, useNativeDriver: true}),
+          RNAnimated.timing(pulseAnim, {toValue: 1.0, duration: 400, useNativeDriver: true}),
+        ]),
+        {iterations: 5},
+      ).start(() => {
+        setThrobCounter(false);
+      });
+    } else {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(1);
+    }
+  }, [throbCounter, pulseAnim]);
 
   // Trigger animation on completion after a letter change
   React.useEffect(() => {
     if (gridCompleted && letterChangeRef.current) {
       letterChangeRef.current = false;
-      setShowFlowerAnimation(true);
-      saveSolvedGrid(letters, vocabulary.wordlistFile);
+      // Save and check if it's a new solution
+      saveSolvedGrid(letters, vocabulary.wordlistFile).then(isNew => {
+        if (isNew) {
+          setFoundCount(prev => prev + 1);
+          setThrobCounter(true);
+        }
+        setShowFlowerAnimation(true);
+      });
       // Sync to backend if registered
       syncCompletion(letters, vocabulary.wordlistFile).catch(() => {});
     }
@@ -168,7 +195,7 @@ function App(): React.JSX.Element {
       // Sync all locally stored completions to backend
       syncAllCompletions().catch(() => {});
     } catch (e: any) {
-      setRegisterError(e.message || 'Registration failed');
+      setRegisterError(e.message === 'username_taken' ? t.registerNickTaken : (e.message || 'Registration failed'));
     } finally {
       setRegistering(false);
     }
@@ -543,15 +570,20 @@ function App(): React.JSX.Element {
                     ) : (
                       <View>
                         {hallOfFame.slice(0, 10).map((entry, index) => (
-                          <View key={entry.user_id} style={styles.highscoreRow}>
-                            <Text style={[styles.highscoreRank, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
-                              {index + 1}.
-                            </Text>
-                            <Text style={[styles.highscoreName, entry.user_id === userProfile.id && styles.highscoreCurrentUser]} numberOfLines={1}>
-                              {entry.username}
-                            </Text>
-                            <Text style={[styles.highscoreScore, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
-                              {entry.wordlists.map(w => w.count).join(' + ')} = {entry.total}
+                          <View key={entry.user_id} style={styles.hallOfFameRow}>
+                            <View style={styles.hallOfFameHeader}>
+                              <Text style={[styles.highscoreRank, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                                {index + 1}.
+                              </Text>
+                              <Text style={[styles.highscoreName, entry.user_id === userProfile.id && styles.highscoreCurrentUser]} numberOfLines={1}>
+                                {entry.username}
+                              </Text>
+                              <Text style={[styles.highscoreScore, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                                {entry.total}
+                              </Text>
+                            </View>
+                            <Text style={[styles.hallOfFameBreakdown, entry.user_id === userProfile.id && styles.highscoreCurrentUser]}>
+                              {entry.wordlists.map(w => w.count).join(' + ')}
                             </Text>
                           </View>
                         ))}
@@ -559,13 +591,18 @@ function App(): React.JSX.Element {
                           <View>
                             <Text style={styles.highscoreDots}>···</Text>
                             {hallOfFame.filter(e => e.user_id === userProfile.id).map(entry => (
-                              <View key={entry.user_id} style={styles.highscoreRow}>
-                                <Text style={[styles.highscoreRank, styles.highscoreCurrentUser]}>—</Text>
-                                <Text style={[styles.highscoreName, styles.highscoreCurrentUser]} numberOfLines={1}>
-                                  {entry.username}
-                                </Text>
-                                <Text style={[styles.highscoreScore, styles.highscoreCurrentUser]}>
-                                  {entry.wordlists.map(w => w.count).join(' + ')} = {entry.total}
+                              <View key={entry.user_id} style={styles.hallOfFameRow}>
+                                <View style={styles.hallOfFameHeader}>
+                                  <Text style={[styles.highscoreRank, styles.highscoreCurrentUser]}>—</Text>
+                                  <Text style={[styles.highscoreName, styles.highscoreCurrentUser]} numberOfLines={1}>
+                                    {entry.username}
+                                  </Text>
+                                  <Text style={[styles.highscoreScore, styles.highscoreCurrentUser]}>
+                                    {entry.total}
+                                  </Text>
+                                </View>
+                                <Text style={[styles.hallOfFameBreakdown, styles.highscoreCurrentUser]}>
+                                  {entry.wordlists.map(w => w.count).join(' + ')}
                                 </Text>
                               </View>
                             ))}
@@ -614,9 +651,15 @@ function App(): React.JSX.Element {
 
         {/* Solution counter */}
         <View style={styles.solutionCounter}>
-          <Text style={styles.solutionCounterText}>
-            {foundCount} / {SOLUTION_COUNTS[wordlistKey] ?? '?'}
-          </Text>
+          <RNAnimated.View style={{transform: [{scale: pulseAnim}]}}>
+            <Text style={[
+              styles.solutionCounterText,
+              throbCounter && styles.solutionCounterThrob,
+            ]}>
+              {foundCount}
+            </Text>
+          </RNAnimated.View>
+          <Text>&nbsp;/ {SOLUTION_COUNTS[wordlistKey] ?? '?'}</Text>
         </View>
 
         {/* Word grid */}
@@ -796,12 +839,18 @@ const styles = StyleSheet.create({
   },
   solutionCounter: {
     alignItems: 'center',
-    paddingVertical: 4,
+    justifyContent: 'center',
+    height: 36,
+    flexDirection: 'row'
   },
   solutionCounterText: {
-    fontSize: 13,
-    color: '#555',
-    fontWeight: '500',
+    fontSize: 20,
+    color: '#333',
+    fontWeight: '700',
+  },
+  solutionCounterThrob: {
+    fontSize: 26,
+    color: '#4a90d9',
   },
   registerInput: {
     borderWidth: 1,
@@ -855,6 +904,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
     paddingVertical: 4,
+  },
+  hallOfFameRow: {
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  hallOfFameHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hallOfFameBreakdown: {
+    fontSize: 12,
+    color: '#888',
+    marginLeft: 28,
+    marginTop: 2,
+    flexWrap: 'wrap',
   },
   tabBar: {
     flexDirection: 'row',

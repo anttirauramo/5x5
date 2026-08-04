@@ -59,11 +59,17 @@ def handle_register(environ):
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            'INSERT INTO users (username) VALUES (%s)',
-            (username,)
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                'INSERT INTO users (username) VALUES (%s)',
+                (username,)
+            )
+            conn.commit()
+        except mysql.connector.IntegrityError:
+            cursor.close()
+            conn.close()
+            return '409 Conflict', json.dumps({'error': 'username_taken'})
+
         user_id = cursor.lastrowid
         cursor.close()
         conn.close()

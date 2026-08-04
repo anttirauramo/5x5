@@ -47,6 +47,7 @@ export interface Translations {
 
   // Registration
   registerNickRequired: string;
+  registerNickTaken: string;
 }
 
 const fi: Translations = {
@@ -88,6 +89,7 @@ const fi: Translations = {
   highscoresConnectionError: 'Yhteyttä palvelimeen ei saatu.',
 
   registerNickRequired: 'Syötä nimimerkki',
+  registerNickTaken: 'Nimimerkki on jo käytössä. Valitse toinen.',
 };
 
 const sv: Translations = {
@@ -129,6 +131,7 @@ const sv: Translations = {
   highscoresConnectionError: 'Kunde inte ansluta till servern.',
 
   registerNickRequired: 'Ange ett smeknamn',
+  registerNickTaken: 'Smeknamnet är redan taget. Välj ett annat.',
 };
 
 const en: Translations = {
@@ -170,6 +173,7 @@ const en: Translations = {
   highscoresConnectionError: 'Could not connect to server.',
 
   registerNickRequired: 'Enter a nickname',
+  registerNickTaken: 'Nickname is already taken. Please choose another.',
 };
 
 const TRANSLATIONS: Record<Language, Translations> = {fi, sv, en};
